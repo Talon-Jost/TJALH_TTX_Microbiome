@@ -1,0 +1,131 @@
+setwd("~/Documents/Thesis_Part_2/Newt_TTX_Project")
+rm(list=ls())
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(lme4) 
+library(nlme)
+library(vegan)
+library(readr)
+library(plotrix)
+#install.packages('reticulate', dependencies = TRUE)
+library(reticulate)
+
+
+
+df <- read.csv('ALHms_CompiledData.csv', header = TRUE)
+#there is an NA on row 6 in predicted TTX, using mutate to change that to a zero
+df1 <- df %>%
+  mutate(Predicted.whole.newt.TTX..mg. = if_else(is.na(Predicted.whole.newt.TTX..mg.), 0, Predicted.whole.newt.TTX..mg.))
+#when you open up the data set as is, it gives weird 'na' lines for no reason so I use the next code to clear it
+df1 <- na.omit(df1)
+summary(df1)
+names(df)
+summary(df)
+
+
+library(plotrix)
+sum(df1$Bd_Presence)
+sum(df1$Sex == 'M')
+sum(df1$Sex == 'F')
+print(std.error(df1$ZE.avg.Bd))
+max(df1$ZE.avg.Bd)
+mean(df1$ZE.avg.Bd)
+
+df1$Sex <- ifelse(df1$Sex == "M",1,0)
+summary(df1)
+x <- df1$Sex 
+if(df1$Sex > 0) {
+  answer <- std.error(df1$Mass_g)
+  returnValue(answer)
+} else {
+  print('Null')
+}
+
+if(x < 1) {
+  print(mean(df1$Mass_g))
+} else {
+  print('Null')
+}
+
+trial_function <- function() {
+  male = which(df1$Sex == 'M')
+  
+  mmass <- print(mean(df1$Mass_g), which(df1$Sex == '1'))
+  cat('the mean mass of male newts is', mmass)
+  male_mass <- print(std.error(df1$Mass_g), which(df1$Sex == 1))
+  cat('The standard error is', male_mass)
+  
+  print(std.error(df1$Mass_g), which(df1$Sex == 0))
+  print(std.error(df1$Mass_g))
+  print(mean(df1$Mass_g))
+  
+  print(mean(df1$Mass_g), which(df1$Sex == 'F'))
+}
+trial_function()
+
+trial_function_2 <- function() {
+  if(x < 1) {
+    print(mean(df1$Mass_g))
+  } else {
+    print('Null')
+  }
+}
+trial_function_2
+
+
+
+boxplot(df1$ZE.avg.Bd ~ df1$Location)
+trial <- aov(ZE.avg.Bd ~ Location, data = df1)
+summary(trial)
+trial2 <- aov(df1$Predicted.whole.newt.TTX..mg. ~ df1$Location)
+summary(trial2)
+#using this one so far
+boxplot(df1$Predicted.whole.newt.TTX..mg. ~ df1$Location)
+ggplot(df1, aes(x = Location, y = Predicted.whole.newt.TTX..mg., col = Location)) + geom_boxplot() + theme_classic() + xlab('Location') + ylab('Predicted TTX (mg)') + scale_color_manual(values = c("#FF0000", "#56B4E9", "#FF0000", "#56B4E9", "#56B4E9", "#FF0000")) + theme(legend.position = 'none')
+
+#glm cited
+new_mine <- glm(ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg., data = df1, family = quasipoisson)
+summary(new_mine)
+plot(new_mine)
+new_mine2 <- lm(ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg., data = df1)
+summary(new_mine2)
+plot(new_mine2)
+
+#removing N/A's from zoospore to look at only individuals with a positive infection quantity. ZE.avg > 0
+df <- filter(df, ZE.avg.Bd > 0)
+boxplot(df$ZE.avg.Bd ~ df$Location)
+#Noticing a significant difference in SLNF here, max value, min is 0 but we removed
+max(df$ZE.avg.Bd)
+min(df$ZE.avg.Bd)
+
+#linear workshop
+
+mdl1 <- lm(data = df, ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg.)
+summary(mdl1)
+plot(mdl1)
+
+mdl2 <- lm(data = df, ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg. * Location)
+summary(mdl2)
+
+mdl3 <- lm(data = df, ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg. + Location:Predicted.whole.newt.TTX..mg.)
+summary(mdl3)
+
+mdl4 <- lme(data = df, ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg., random = ~1 | Location)
+summary(mdl4)
+
+mdl5 <- lme(data = df, ZE.avg.Bd ~ Location, random = ~1 | Predicted.whole.newt.TTX..mg.)
+summary(mdl5)
+
+#Anything to do with associated ZE.avg, location, or TTX..mg seems to be associated with SLNF
+#first anova trial based on non-zero Bd zoospore
+anova1 <- aov(ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg., data = df)
+summary(anova1)
+#Nothing on this one. P value 0.707
+anova2 <- aov(ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg. * Location, data = df)
+summary(anova2)
+
+pres_vs_ttx <- lm(Bd_Presence ~ Predicted.whole.newt.TTX..mg., data = df)
+summary(pres_vs_ttx)
+plot(pres_vs_ttx)
+
