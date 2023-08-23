@@ -1,4 +1,4 @@
-#‘Happy families are all alike; every unhappy family is unhappy in its own way.’#
+#‘Happy families are all alike; every unhappy family is unhappy in its own way.#
 
 
 setwd("~/Documents/Thesis_Part_2/Newt_TTX_Project")
@@ -13,6 +13,7 @@ library(readr)
 library(plotrix)
 #install.packages('reticulate', dependencies = TRUE)
 library(reticulate)
+library(effects)
 
 
 
@@ -131,4 +132,190 @@ summary(anova2)
 pres_vs_ttx <- lm(Bd_Presence ~ Predicted.whole.newt.TTX..mg., data = df)
 summary(pres_vs_ttx)
 plot(pres_vs_ttx)
+
+#actual used
+df <- read.csv('TJAH_TTX_DATA_CLEANED.csv', header = TRUE)
+#dataset imported, there is an NA on FCSP-05 in the column Predicted.whole.newt.ttx..mg.
+
+#number of overall individuals with Bd
+total_bd_present <- sum(df$Bd_Presence)
+print(total_bd_present)
+
+#sex distribution
+total_males <- sum(df$Sex == 'M')
+print(total_males)
+
+total_females <- sum(df$Sex == 'F')
+print(total_females)
+
+
+##ALL ZOOSPORE STUFF##
+#______________________________________________________________________________________
+#total zoospore average
+total_zoospore_std_error <- print(std.error(df$ZE.avg.Bd))
+
+total_max_zoospore <- print(max(df$ZE.avg.Bd))
+total_min_zoospore <- print(min(df$ZE.avg.Bd))
+total_mean_zoospore <- print(mean(df$ZE.avg.Bd))
+
+#straight boxplot of zoospore average and location
+boxplot(df$ZE.avg.Bd ~ df$Location)
+#quite high outlier in SLNF just based on the boxplot but the rest look okay. SLNF-01 has zoospore of 17,400
+
+#regular histogram no transformation
+hist(df$ZE.avg.Bd)
+hist(log(df$ZE.avg.Bd +1))
+log_bd <- log(df$ZE.avg.Bd + 1)
+df$log_bd <- log(df$ZE.avg.Bd +1)
+
+#new boxplot with log transformed data
+boxplot(df$log_bd ~ df$Location)
+abline(h = 1)
+
+#one-way
+trial <- aov(ZE.avg.Bd ~ Location, data = df)
+summary(trial)
+trial_2 <- aov(df$log_bd ~ Location, data = df)
+summary(trial_2)
+TukeyHSD(trial_2)
+
+#__________________________________________________________________________
+#ALL TTX STUFF
+
+whole_ttx <- df$Predicted.whole.newt.TTX..mg.
+
+hist(whole_ttx)
+
+#likely shouldn't log transform the ttx, it's a predicted concentration measurement that has assumptions based on its value throughout the experimental design
+log_ttx <- log(whole_ttx + 1)
+hist(log_ttx)
+#boxcox transformation
+#okay but that's interesting
+boxplot(whole_ttx ~ Location, data = df)
+boxplot(log_ttx ~ Location, data = df)
+abline(h = 1)
+
+#install.packages('ggtext', dependencies = TRUE)
+library(ggtext)
+ggplot(df, aes(x = Location, y = Predicted.whole.newt.TTX..mg.)) + geom_boxplot() + theme_classic() + xlab('Location') + ylab(expression(paste("Tetrodotoxin Concentration (mg/", cm^2, ")"))) + theme(axis.title = element_text(size = 20))
+ttx_aov <- aov(Predicted.whole.newt.TTX..mg. ~ Location, data = df)
+summary(ttx_aov)
+TukeyHSD(ttx_aov)
+
+ggplot(df, aes(x = Location, y = log_bd)) + geom_boxplot() + theme_classic() +xlab('Location') + ylab('Bd Zoospore Equivalance Log10 + 1') + theme(axis.title = element_text(size = 20))
+abline(h = 1)
+plot(ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg., data = df)
+plot(log_bd ~ log_ttx)
+plot(log_bd ~ Predicted.whole.newt.TTX..mg., data = df)
+options(na.action(na.omit))
+as.factor(df$ZE.avg.Bd)
+as.factor(df$Predicted.whole.newt.TTX..mg.)
+new_mine <- glm(as.factor(log_bd) ~ Predicted.whole.newt.TTX..mg. * Location, data = df, family = binomial)
+summary(new_mine)
+plot(new_mine)
+#install.packages('effects', dependencies = TRUE)
+
+my_effect <- (allEffects(new_mine))
+plot(my_effect, rug = FALSE, type = 'response', rescale.axis = FALSE)
+
+mine_two <- lm(log_bd ~ Predicted.whole.newt.TTX..mg., data = df)
+summary(mine_two)
+effect_real <- (allEffects(mine_two))
+plot(effect_real)
+plot(mine_two)
+
+
+#Subset_____
+positives <- subset(df, ZE.avg.Bd > 0)
+hist(positives$log_bd)
+mine_three <- lm(log_bd ~ Predicted.whole.newt.TTX..mg., data = positives)
+summary(mine_three)
+plot(mine_three)
+new_plot <- plot(log_bd ~ Predicted.whole.newt.TTX..mg., data = positives)
+abline(new_plot)
+
+males <- subset(df, Sex == 'M')
+print(mean(males$Mass_g))
+print(mean(males$SVL_mm))
+print(mean(males$ZE.avg.Bd))
+print(mean(males$Predicted.whole.newt.TTX..mg.))
+
+females <- subset(df, Sex == 'F')
+print(mean(females$Mass_g))
+print(mean(females$SVL_mm))
+print(mean(females$ZE.avg.Bd))
+print(mean(females$Predicted.whole.newt.TTX..mg.))
+
+
+df$infected <- as.numeric(df$ZE.avg.Bd > 0)
+mine_four <- glm(infected ~ Predicted.whole.newt.TTX..mg., data = df, family = binomial)
+summary(mine_four)
+plot(mine_four)
+plot(allEffects(mine_four))
+
+
+df <- df[-which(is.na(df$Predicted.whole.newt.TTX..mg.)),]
+mine_mine <-glm(ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg., data = df, family = binomial)
+mine_five <- glm(infected ~ Predicted.whole.newt.TTX..mg. * Location * Mass_g * SVL_mm, data = df, family = binomial)
+library(car)
+Anova(mine_five, type = 2)
+library(MuMIn)
+options(na.action='na.fail')
+options(na.action(na.omit))
+my_dredge <- dredge(mine_five)
+
+mine_six <- glm(as.factor(log_bd) ~ Predicted.whole.newt.TTX..mg., data = df, family = binomial)
+summary(mine_six)
+anova(mine_six, type = 2)
+dredge2_boogaloo <- dredge(mine_six)
+
+new_trial <- glm(total_bd_present ~ Predicted.whole.newt.TTX..mg., data = df, family = binomial)
+summary(new_trial)
+plot(allEffects(new_trial))
+
+options(na.action(na.omit))
+mean_ttx <- mean(df$Predicted.whole.newt.TTX..mg.)
+mean_ttx
+
+new_data <- na.omit(df)
+zscores <- (new_data$Predicted.whole.newt.TTX..mg. - mean(new_data$Predicted.whole.newt.TTX..mg.))/sd(new_data$Predicted.whole.newt.TTX..mg.)
+zscores
+
+prevalence <- glm(Bd_Presence ~ zscores, data = new_data, family = binomial)
+new_three <- glm(Bd_Presence ~ Predicted.whole.newt.TTX..mg., data = df, family = binomial)
+summary(new_three)
+summary(prevalence)
+plot(allEffects(prevalence))
+new_data$Zscores <- as.factor(zscores)
+plot(new_data$Bd_Presence ~ new_data$Zscores)
+#_________EXPLORATORY_______
+shapiro.test(df$ZE.avg.Bd)
+shapiro.test(df$Predicted.whole.newt.TTX..mg.)
+
+shapiro.test(log_ttx)
+shapiro.test(log_bd)
+
+Bd_pos_df <- subset(
+  df, Location %in% (
+    c('GRP', 'SLNF', 'TMC', 'WBC')
+    )
+  )
+
+site_trial <- glm(
+  as.factor(ZE.avg.Bd) ~ Predicted.whole.newt.TTX..mg., data = Bd_pos_df, family = binomial
+  )
+summary(site_trial)
+
+plot(allEffects(site_trial))
+
+new_trial2 <- glm(
+  Bd_Presence ~ Predicted.whole.newt.TTX..mg., data = Bd_pos_df, family = binomial
+)
+summary(new_trial2)
+plot(allEffects(new_trial2))
+ggplot(Bd_pos_df, aes(x = Bd_Presence, y = Prediceted.whole.newt.TTX..mg.)) + geom_point() + geom_smooth(method = 'glm')
+
+
+
+
 
