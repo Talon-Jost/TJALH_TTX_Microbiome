@@ -171,6 +171,7 @@ df$log_bd <- log(df$ZE.avg.Bd +1)
 #new boxplot with log transformed data
 boxplot(df$log_bd ~ df$Location)
 abline(h = 1)
+ggplot(df, aes(Location, log_bd)) + geom_boxplot() + geom_jitter(width = 0.3, colour = 4, size = 1) + xlab('Location') + ylab(bquote('Bd Infection Intensity ' (Log[10]+1))) + theme_classic() + theme(axis.text.x = element_text(angle = 45, hjust = 1.1), plot.title = element_text(hjust = 0.5)) + ggtitle('Bd Infection Intensity by Location') 
 
 #one-way
 trial <- aov(ZE.avg.Bd ~ Location, data = df)
@@ -179,11 +180,10 @@ trial_2 <- aov(df$log_bd ~ Location, data = df)
 summary(trial_2)
 TukeyHSD(trial_2)
 
-#__________________________________________________________________________
-#ALL TTX STUFF
+#_______________________ALL TTX STUFF___________________________________#
 
 whole_ttx <- df$Predicted.whole.newt.TTX..mg.
-
+plot(whole_ttx)
 hist(whole_ttx)
 
 #likely shouldn't log transform the ttx, it's a predicted concentration measurement that has assumptions based on its value throughout the experimental design
@@ -313,7 +313,7 @@ new_trial2 <- glm(
 )
 summary(new_trial2)
 plot(allEffects(new_trial2))
-ggplot(Bd_pos_df, aes(x = Bd_Presence, y = Prediceted.whole.newt.TTX..mg.)) + geom_point() + geom_smooth(method = 'glm')
+ggplot(Bd_pos_df, aes(x = Predicted.whole.newt.TTX..mg., y = Bd_Presence)) + geom_smooth(method = 'glm', fill = '#0099FF', colour = 'black') + theme_classic() + xlab(bquote('TTX Concentration '(mg/cm^2))) + ylab ("Bd Presence") + ggtitle('Infection Present Sites Only') + theme(plot.title = element_text(hjust = 0.5))
 
 
 
