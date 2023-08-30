@@ -1,4 +1,4 @@
-#‘Happy families are all alike; every unhappy family is unhappy in its own way.#
+#Happy families are all alike; every unhappy family is unhappy in its own way.#
 
 
 setwd("~/Documents/Thesis_Part_2/Newt_TTX_Project")
@@ -180,12 +180,15 @@ trial_2 <- aov(df$log_bd ~ Location, data = df)
 summary(trial_2)
 TukeyHSD(trial_2)
 
-#_______________________ALL TTX STUFF___________________________________#
+#______________________________ALL TTX STUFF____________________________________#
 
-whole_ttx <- df$Predicted.whole.newt.TTX..mg.
+whole_ttx <- df1$Predicted.whole.newt.TTX..mg.
+new_ttx <- mean_TTX
 plot(whole_ttx)
 hist(whole_ttx)
-
+Mean_TTX <- df1 %>% group_by(Location) %>% summarise(mean_ttx=mean(Predicted.whole.newt.TTX..mg.))
+mean_TTX
+ggplot(df1, aes(x = SwabID, y = whole_ttx)) + geom_point(stat = 'identity', aes(col = Location), size = 1) + geom_hline(data = Mean_TTX, aes(yintercept = mean_ttx, col = Location))  + theme(axis.text.x = element_text(angle = 90, hjust = 1.1)) + ylab(bquote('TTX Concentration '(mg/cm^2))) + xlab('Sample ID')
 #likely shouldn't log transform the ttx, it's a predicted concentration measurement that has assumptions based on its value throughout the experimental design
 log_ttx <- log(whole_ttx + 1)
 hist(log_ttx)
