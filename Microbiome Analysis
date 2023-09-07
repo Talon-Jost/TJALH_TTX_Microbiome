@@ -14,7 +14,7 @@ BiocManager::install("preprocessCore")
 BiocManager::install("GO.db")
 BiocManager::install("impute")
 
-install.packages(c("adespatial","ape","devtools","ggdendro","gridExtra","knitr","MicrobeR","pander","plotly","png","tidyverse","vegan"))
+install.packages(c("adespatial","devtools","ggdendro","gridExtra","knitr","MicrobeR","pander","plotly","png","tidyverse","vegan"))
 install.packages(c('tidyverse'))
 
 library(devtools)
@@ -27,6 +27,7 @@ install.packages("remotes")
 remotes::install_github("jbisanz/qiime2R")
 remotes::install_github("jbisanz/MicrobeR")
 remotes::install_github("microsud/microbiomeutilities")
+remotes::install_github("https://github.com/emmanuelparadis/ape")
 
 
 BiocManager::install_github('http://microbiome.github.com/microbiome')
@@ -97,7 +98,14 @@ library(RColorBrewer) # nice color options
 library(microbiomeutilities) # some utility tools 
 
 #Some stats packages
-library(dplyr)
+library(dplyr) # dplyr is a grammar of data manipulation, providing a consistent set of verbs that help you solve the most common data manipulation challenges:
+
+    # mutate() adds new variables that are functions of existing variables
+    # select() picks variables based on their names.
+    # filter() picks cases based on their values.
+    # summarise() reduces multiple values down to a single summary.
+    # arrange() changes the ordering of the rows.
+
 library(MASS)
 library(ggplot2)
 library(lme4) 
@@ -107,6 +115,7 @@ library(readr)
 library(plotrix)
 library(effects)
 library(dada2)
+
 
 # usefull things:
 # read_qza() - Function for reading artifacts (.qza).
@@ -120,7 +129,7 @@ library(dada2)
 # parse_ordination() - A function to parse the internal ordination format
 
 
-Sequence_Path <- '/home/tally/Documents/Thesis_Part_2/Newt_TTX_Project/Illumina_Sequences'
+Sequence_Path <- '/home/tally/Desktop/Illumina_Sequences'
 list.files(Sequence_Path)
 
 #sorting - you can repeat this step and order with R1_002 under a different name if you need to
@@ -139,5 +148,13 @@ initial_reads
 
 sample.names <- sapply(strsplit(basename(initial_reads), "_20230711"), `[`, 1)
 sample.names
+
+filtRs <- file.path(sequences_reads, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs
+
+filter_trim <- filterAndTrim(initial_reads, filtRs, truncLen=c(250,1),
+              maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+              compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
+head(filter_trim)
 
 seqtab <- makeSequenceTable(sample.names)
