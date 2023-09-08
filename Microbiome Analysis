@@ -30,6 +30,19 @@ remotes::install_github("microsud/microbiomeutilities")
 remotes::install_github("https://github.com/emmanuelparadis/ape")
 
 
+#potential linux gnu issues which may need to be fixed/installed
+    # cmake
+    # make
+    # gcc
+    # g++
+    # gfortran
+
+BiocManager::install("Rhtslib")
+BiocManager::install('ShortRead', version = 3.16)
+devtools::install_github('https://github.com/RcppCore/RcppEigen.git')
+remotes::install_github('https://github.com/benjjneb/dada2.git')
+
+
 BiocManager::install_github('http://microbiome.github.com/microbiome')
 BiocManager::install("microbiome")
 
