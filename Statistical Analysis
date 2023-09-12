@@ -1,4 +1,4 @@
-#Happy families are all alike; every unhappy family is unhappy in its own way.#
+#‘Happy families are all alike; every unhappy family is unhappy in its own way.#
 
 
 setwd("~/Documents/Thesis_Part_2/Newt_TTX_Project")
@@ -11,11 +11,8 @@ library(nlme)
 library(vegan)
 library(readr)
 library(plotrix)
-#install.packages('reticulate', dependencies = TRUE)
 library(reticulate)
 library(effects)
-
-
 
 df <- read.csv('ALHms_CompiledData.csv', header = TRUE)
 #there is an NA on row 6 in predicted TTX, using mutate to change that to a zero
@@ -27,8 +24,55 @@ summary(df1)
 names(df)
 summary(df)
 
+#________________working with Python__________________
+#starting your python sub-environment using repl_python(), make sure to exit within the console to return to classic R coding, cheers
 
-library(plotrix)
+#starting your python sub-environment, make sure to exit within the console to return to classic R coding, cheers
+repl_python()
+#configure your settings if you so desire
+reticulate::py_config()
+os <- import("os")
+os$listdir(".")
+np <- import('numpy')
+py_install('matplotlib')
+matplot <- import('matplotlib')
+main <- import_main()
+builtins <- import_builtins()
+py_install('pandas')
+
+#configure your settings if you so desire
+reticulate::py_config()
+os <- import("os")
+os$listdir(".")
+np <- import('numpy')
+py_install('matplotlib')
+matplot <- import('matplotlib')
+main <- import_main()
+builtins <- import_builtins()
+py_install('pandas')
+import pandas as pd
+
+repl_python()
+newts = pd.read_csv('TJAH_TTX_DATA_CLEANED.csv')
+def gen_overview(newts):
+  heads = newts.head(n=10)
+  #accessing a column from the dataset
+  ttx = newts['Predicted whole newt TTX (mg)']
+  #finding the values present
+  values = ttx.value_counts()
+  #number of values present
+  counts = ttx.count()
+  described = ttx.describe()
+  Bd_total = newts['ZE.avg.Bd'].describe()
+  select_newts = newts.loc[[2,0,7], ['Predicted whole newt TTX (mg)']]
+  find = newts.loc[:20, 'ZE.avg.Bd':'Predicted whole newt TTX (mg)']
+  print(heads, ttx, values, counts, described, Bd_total, select_newts, find)
+  print('End of Results.')
+  return
+gen_overview(newts)
+overview()
+
+#________Back to R_________
 sum(df1$Bd_Presence)
 sum(df1$Sex == 'M')
 sum(df1$Sex == 'F')
@@ -183,12 +227,13 @@ TukeyHSD(trial_2)
 #______________________________ALL TTX STUFF____________________________________#
 
 whole_ttx <- df1$Predicted.whole.newt.TTX..mg.
+Mean_TTX <- df1 %>% group_by(Location) %>% summarise(mean_ttx=mean(Predicted.whole.newt.TTX..mg.))
+Mean_TTX
 new_ttx <- mean_TTX
 plot(whole_ttx)
 hist(whole_ttx)
-Mean_TTX <- df1 %>% group_by(Location) %>% summarise(mean_ttx=mean(Predicted.whole.newt.TTX..mg.))
-mean_TTX
 ggplot(df1, aes(x = SwabID, y = whole_ttx)) + geom_point(stat = 'identity', aes(col = Location), size = 1) + geom_hline(data = Mean_TTX, aes(yintercept = mean_ttx, col = Location))  + theme(axis.text.x = element_text(angle = 90, hjust = 1.1)) + ylab(bquote('TTX Concentration '(mg/cm^2))) + xlab('Sample ID')
+ggplot(df1, aes(x = SwabID, y = whole_ttx, group = Location)) + geom_point(stat = 'identity', aes(col = Location), size = 1) + geom_hline(data = Mean_TTX, aes(yintercept = mean_ttx, col = Location))  + theme(axis.text.x = element_text(angle = 90, hjust = 1.1)) + ylab(bquote('TTX Concentration '(mg/cm^2))) + xlab('Sample ID') + facet_grid(.~Location, space = 'free', scales = 'free_x')
 #likely shouldn't log transform the ttx, it's a predicted concentration measurement that has assumptions based on its value throughout the experimental design
 log_ttx <- log(whole_ttx + 1)
 hist(log_ttx)
@@ -317,8 +362,5 @@ new_trial2 <- glm(
 summary(new_trial2)
 plot(allEffects(new_trial2))
 ggplot(Bd_pos_df, aes(x = Predicted.whole.newt.TTX..mg., y = Bd_Presence)) + geom_smooth(method = 'glm', fill = '#0099FF', colour = 'black') + theme_classic() + xlab(bquote('TTX Concentration '(mg/cm^2))) + ylab ("Bd Presence") + ggtitle('Infection Present Sites Only') + theme(plot.title = element_text(hjust = 0.5))
-
-
-
 
 
