@@ -13,6 +13,20 @@ library(readr)
 library(plotrix)
 library(reticulate)
 library(effects)
+library(remotes)
+library(MuMIn)
+library(ggtext)
+library(car)
+library(MuMIn)
+library(minpack.lm)
+remotes::install_github('ProcessMiner/nlcor')
+library(nlcor)
+remotes::install_github('femiguez/nlraa')
+library(nlraa)
+library(mgcv)
+library(tidymv)
+remotes::install_github("gavinsimpson/gratia")
+library(gratia)
 
 df <- read.csv('ALHms_CompiledData.csv', header = TRUE)
 #there is an NA on row 6 in predicted TTX, using mutate to change that to a zero
@@ -56,19 +70,19 @@ repl_python()
 newts = pd.read_csv('TJAH_TTX_DATA_CLEANED.csv')
 def gen_overview(newts):
   heads = newts.head(n=10)
-  #accessing a column from the dataset
-  ttx = newts['Predicted whole newt TTX (mg)']
-  #finding the values present
-  values = ttx.value_counts()
-  #number of values present
-  counts = ttx.count()
-  described = ttx.describe()
-  Bd_total = newts['ZE.avg.Bd'].describe()
-  select_newts = newts.loc[[2,0,7], ['Predicted whole newt TTX (mg)']]
-  find = newts.loc[:20, 'ZE.avg.Bd':'Predicted whole newt TTX (mg)']
-  print(heads, ttx, values, counts, described, Bd_total, select_newts, find)
-  print('End of Results.')
-  return
+#accessing a column from the dataset
+ttx = newts['Predicted whole newt TTX (mg)']
+#finding the values present
+values = ttx.value_counts()
+#number of values present
+counts = ttx.count()
+described = ttx.describe()
+Bd_total = newts['ZE.avg.Bd'].describe()
+select_newts = newts.loc[[2,0,7], ['Predicted whole newt TTX (mg)']]
+find = newts.loc[:20, 'ZE.avg.Bd':'Predicted whole newt TTX (mg)']
+print(heads, ttx, values, counts, described, Bd_total, select_newts, find)
+print('End of Results.')
+return
 gen_overview(newts)
 overview()
 
@@ -209,7 +223,7 @@ boxplot(df$ZE.avg.Bd ~ df$Location)
 #regular histogram no transformation
 hist(df$ZE.avg.Bd)
 hist(log(df$ZE.avg.Bd +1))
-log_bd <- log(df$ZE.avg.Bd + 1)
+log_bd <- log(df1$ZE.avg.Bd + 1)
 df$log_bd <- log(df$ZE.avg.Bd +1)
 
 #new boxplot with log transformed data
@@ -244,7 +258,6 @@ boxplot(log_ttx ~ Location, data = df)
 abline(h = 1)
 
 #install.packages('ggtext', dependencies = TRUE)
-library(ggtext)
 ggplot(df, aes(x = Location, y = Predicted.whole.newt.TTX..mg.)) + geom_boxplot() + theme_classic() + xlab('Location') + ylab(expression(paste("Tetrodotoxin Concentration (mg/", cm^2, ")"))) + theme(axis.title = element_text(size = 20))
 ttx_aov <- aov(Predicted.whole.newt.TTX..mg. ~ Location, data = df)
 summary(ttx_aov)
@@ -305,9 +318,9 @@ plot(allEffects(mine_four))
 df <- df[-which(is.na(df$Predicted.whole.newt.TTX..mg.)),]
 mine_mine <-glm(ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg., data = df, family = binomial)
 mine_five <- glm(infected ~ Predicted.whole.newt.TTX..mg. * Location * Mass_g * SVL_mm, data = df, family = binomial)
-library(car)
+
+
 Anova(mine_five, type = 2)
-library(MuMIn)
 options(na.action='na.fail')
 options(na.action(na.omit))
 my_dredge <- dredge(mine_five)
@@ -346,12 +359,12 @@ shapiro.test(log_bd)
 Bd_pos_df <- subset(
   df, Location %in% (
     c('GRP', 'SLNF', 'TMC', 'WBC')
-    )
   )
+)
 
 site_trial <- glm(
   as.factor(ZE.avg.Bd) ~ Predicted.whole.newt.TTX..mg., data = Bd_pos_df, family = binomial
-  )
+)
 summary(site_trial)
 
 plot(allEffects(site_trial))
@@ -362,5 +375,47 @@ new_trial2 <- glm(
 summary(new_trial2)
 plot(allEffects(new_trial2))
 ggplot(Bd_pos_df, aes(x = Predicted.whole.newt.TTX..mg., y = Bd_Presence)) + geom_smooth(method = 'glm', fill = '#0099FF', colour = 'black') + theme_classic() + xlab(bquote('TTX Concentration '(mg/cm^2))) + ylab ("Bd Presence") + ggtitle('Infection Present Sites Only') + theme(plot.title = element_text(hjust = 0.5))
+
+
+
+
+#___________TMC_Individual_Investigation____________
+plot(tmc_Bd_var ~ tmc_ttx_var)
+tmc_var <- subset(df1, Location == 'TMC')
+tmc_ttx_var <- tmc_var$Predicted.whole.newt.TTX..mg.
+tmc_Bd_var <- tmc_var$ZE.avg.Bd
+tmc_glm <- glm(as.factor(tmc_Bd_var) ~ tmc_ttx_var, data = tmc_var, family = binomial)
+summary(tmc_glm)
+mass <- tmc_var$Mass_g
+tmc_gam <- gam(as.factor(tmc_Bd_var) ~ tmc_ttx_var, random = NULL, correlation = NULL, family = binomial)
+summary(tmc_gam)
+
+nlc_trial <- nlcor(tmc_Bd_var, tmc_ttx_var, plt = T)
+nlc_trial
+
+nlc_trial2 <- nlcor(tmc_ttx_var, tmc_Bd_var, plt = T)
+nlc_trial2
+
+
+#____________More_GAMs__________
+
+site_bd <- df1$ZE.avg.Bd
+#_____________________Curious____________
+site_gam <- gam(log_bd ~ whole_ttx, family = quasipoisson, data = Bd_pos_df, method = 'REML')
+summary(site_gam)
+m2 <- fitted(site_gam)
+lines(m2, lwd=2, col = 'blue')
+sm <- smooth_estimates(site_gam, data = Bd_pos_df)
+sm <- smooth_estimates(site_gam, smooth = 's(x2)', partial_match = TRUE)
+plot_smooths(model = site_gam, series = x2, comparison = fac)
+mgcv::plot.gam(site_gam)
+
+#__________-this only works with quasipoisson but has a ridiculous plot. doesn't with binomial as necessary_______
+m3 <- gam(log_bd ~ s(whole_ttx, fx = TRUE, k = 3), family = quasipoisson, method = 'REML')
+summary(m3)
+plot(m3)
+abline(m3)
+
+
 
 
