@@ -47,6 +47,7 @@ repl_python()
 reticulate::py_config()
 os <- import("os")
 os$listdir(".")
+py_install('numpy')
 np <- import('numpy')
 py_install('matplotlib')
 matplot <- import('matplotlib')
@@ -54,17 +55,19 @@ main <- import_main()
 builtins <- import_builtins()
 py_install('pandas')
 
+
+
 #configure your settings if you so desire
 reticulate::py_config()
 os <- import("os")
 os$listdir(".")
 np <- import('numpy')
-py_install('matplotlib')
 matplot <- import('matplotlib')
 main <- import_main()
 builtins <- import_builtins()
 py_install('pandas')
-import pandas as pd
+pd <- import('pandas')
+py_install('biom')
 
 repl_python()
 newts = pd.read_csv('TJAH_TTX_DATA_CLEANED.csv')
