@@ -25,6 +25,7 @@ library(mgcv)
 library(tidymv)
 remotes::install_github("gavinsimpson/gratia")
 library(gratia)
+library(GGally)
 
 #______Data.frame import and basic exploration___
 setwd('~/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/WBC')
@@ -37,6 +38,7 @@ nrow(df_wbc)
 ncol(df_wbc)
 str(df_wbc)
 colSums(is.na(df_wbc))
+dim(df_wbc)
 
 bd_pos_sum <- sum(df_wbc$Bd_Presence == 1)
 bd_pos_sum
@@ -58,4 +60,40 @@ males <- sum(df_wbc$Sex == 'M')
 males
 females <- sum(df_wbc$Sex == 'F')
 females
+
+Bd_zeros <- sum(df_wbc$ZE.avg.Bd == 0)
+#This is to show how many zeroes are in the bd avg set
+Bd_zeros
+
+?ggpairs
+ggpairs(df_wbc, cardinality_threshold = 24)
+
+#___assigned_Variables___
+
+Bd <- df_wbc$ZE.avg.Bd
+TTX <- df_wbc$Predicted.whole.newt.TTX..mg.
+mass <- df_wbc$Mass_g
+svl <- df_wbc$SVL_mm
+bd_presence <- df_wbc$Bd_Presence
+total_length <- df_wbc$TL_mm
+sex <- df_wbc$Sex
+
+#____Graphs____
+ggplot(df_wbc, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
+
+#________Correlational_tests________
+
+test1 = glm()
+
+
+#___________________________________Only Positives____________________
+df2 <- subset(df_wbc, ZE.avg.Bd > 0)
+df2
+
+pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
+pos_Bd <- df2$ZE.avg.Bd
+#____Graphs____
+gen_plot <- ggplot(df2, aes(pos_TTX, pos_Bd)) + geom_point(aes(colour = factor(pos_TTX), size = 4.5)) + theme_classic()
+gen_plot
+
 
