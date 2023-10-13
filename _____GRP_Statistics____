@@ -1,0 +1,100 @@
+#_____GRP_Statistics____
+
+rm(list=ls())
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(lme4) 
+library(nlme)
+library(vegan)
+library(readr)
+library(plotrix)
+library(reticulate)
+library(effects)
+library(remotes)
+library(MuMIn)
+library(ggtext)
+library(car)
+library(MuMIn)
+library(minpack.lm)
+remotes::install_github('ProcessMiner/nlcor')
+library(nlcor)
+remotes::install_github('femiguez/nlraa')
+library(nlraa)
+library(mgcv)
+library(tidymv)
+remotes::install_github("gavinsimpson/gratia")
+library(gratia)
+library(GGally)
+
+#______Data.frame import and basic exploration___
+setwd('/home/tally/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/GRP')
+list.files()
+df_grp <- read.csv('GRP_whole_dataset.csv', header = TRUE)
+head(df_grp, 4)
+summary(df_grp)
+class(df_grp$ZE.avg.Bd)
+nrow(df_grp)
+ncol(df_grp)
+str(df_grp)
+colSums(is.na(df_grp))
+dim(df_grp)
+
+bd_pos_sum <- sum(df_grp$Bd_Presence == 1)
+bd_pos_sum
+bd_neg_sum <- sum(df_grp$Bd_Presence == 0)
+bd_neg_sum
+
+basic_stuff = function(x) {
+  mean = mean(x)
+  sd = sd(x)
+  min = min(x)
+  max = max(x)
+  return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
+}
+sum_list = list('average_zoospore' = df_grp$ZE.avg.Bd, 'TTX' = df_grp$Predicted.whole.newt.TTX..mg., 'SVL' = df_grp$SVL_mm, 'Mass' = df_grp$Mass_g, 'Total_Length' = df_grp$TL_mm)
+summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
+summ
+
+males <- sum(df_grp$Sex == 'M')
+males
+females <- sum(df_grp$Sex == 'F')
+females
+
+Bd_zeros <- sum(df_grp$ZE.avg.Bd == 0)
+#This is to show how many zeroes are in the bd avg set
+Bd_zeros
+
+?ggpairs
+ggpairs(df_grp, cardinality_threshold = 24)
+
+#___assigned_Variables___
+
+Bd <- df_grp$ZE.avg.Bd
+TTX <- df_grp$Predicted.whole.newt.TTX..mg.
+mass <- df_grp$Mass_g
+svl <- df_grp$SVL_mm
+bd_presence <- df_grp$Bd_Presence
+total_length <- df_grp$TL_mm
+sex <- df_grp$Sex
+
+#____Graphs____
+ggplot(df_grp, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
+
+#________Correlational_tests________
+
+test1 = glm()
+
+
+#___________________________________Only Positives____________________
+df2 <- subset(df_grp, ZE.avg.Bd > 0)
+df2
+
+pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
+pos_Bd <- df2$ZE.avg.Bd
+#____Graphs____
+gen_plot <- ggplot(df2, aes(pos_TTX, pos_Bd)) + geom_point(aes(colour = factor(pos_TTX), size = 4.5)) + theme_classic()
+gen_plot
+
+
+
