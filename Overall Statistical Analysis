@@ -4,6 +4,18 @@ use_git_config(user.name = 'Talon-Jost', user.email = 'talonjost@gmail.com')
 
 setwd("~/Documents/Thesis_Part_2/Newt_TTX_Project")
 rm(list=ls())
+
+packages <- c('dplyr', 'MASS', 'ggplot2', 'lme4', 'nlme', 'vegan', 'readr', 'plotrix', 'effects', 'remotes', 'MuMIn', 'ggtext', 'car', 'minpack.lm', 'mgcv', 'tidymv')
+
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+#Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+
+#Packeges
 library(usethis)
 library(dplyr)
 library(MASS)
