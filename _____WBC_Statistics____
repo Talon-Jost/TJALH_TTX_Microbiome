@@ -17,13 +17,13 @@ library(ggtext)
 library(car)
 library(MuMIn)
 library(minpack.lm)
-remotes::install_github('ProcessMiner/nlcor')
+#remotes::install_github('ProcessMiner/nlcor')
 library(nlcor)
-remotes::install_github('femiguez/nlraa')
+#remotes::install_github('femiguez/nlraa')
 library(nlraa)
 library(mgcv)
 library(tidymv)
-remotes::install_github("gavinsimpson/gratia")
+#remotes::install_github("gavinsimpson/gratia")
 library(gratia)
 library(GGally)
 
@@ -83,9 +83,23 @@ ggplot(df_wbc, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_cla
 
 #________Correlational_tests________
 
-test1 = glm()
+wbc_glm1 = glm(data = df_wbc, Bd_Presence ~ TTX, family = binomial)
+summary(wbc_glm1)
+plot(allEffects(wbc_glm1), type = 'response')
 
+log_bd <- log(df_wbc$ZE.avg.Bd + 1)
+wbc_lm1 = lm(data = df_wbc, log_bd ~ TTX, family = binomial)
+summary(wbc_lm1)
+plot(log_bd ~ TTX)
 
+sex_anova <- aov(TTX ~ df_wbc$Sex)
+summary(sex_anova)
+
+bd_anova <- aov(log_bd ~ df_wbc$Sex)
+summary(bd_anova)
+
+ttx_anova <- aov(df_wbc$Predicted.whole.newt.TTX..mg. ~ log_bd)
+summary(ttx_anova)
 #___________________________________Only Positives____________________
 df2 <- subset(df_wbc, ZE.avg.Bd > 0)
 df2
