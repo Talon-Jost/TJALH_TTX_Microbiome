@@ -1,0 +1,110 @@
+#_____LSSP_Statistics____
+
+rm(list=ls())
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(lme4) 
+library(nlme)
+library(vegan)
+library(readr)
+library(plotrix)
+library(reticulate)
+library(effects)
+library(remotes)
+library(MuMIn)
+library(ggtext)
+library(car)
+library(MuMIn)
+library(minpack.lm)
+#remotes::install_github('ProcessMiner/nlcor')
+library(nlcor)
+#remotes::install_github('femiguez/nlraa')
+library(nlraa)
+library(mgcv)
+library(tidymv)
+#remotes::install_github("gavinsimpson/gratia")
+library(gratia)
+library(GGally)
+
+setwd('~/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/LSSP')
+list.files()
+df_LSSP <- read.csv('LSSP_Whole_Dataset.csv', header = TRUE)
+head(df_LSSP, 4)
+summary(df_LSSP)
+class(df_LSSP$ZE.avg.Bd)
+nrow(df_LSSP)
+ncol(df_LSSP)
+str(df_LSSP)
+colSums(is.na(df_LSSP))
+dim(df_LSSP)
+
+bd_pos_sum <- sum(df_LSSP$Bd_Presence == 1)
+bd_pos_sum
+bd_neg_sum <- sum(df_LSSP$Bd_Presence == 0)
+bd_neg_sum
+
+basic_stuff = function(x) {
+  mean = mean(x)
+  sd = sd(x)
+  min = min(x)
+  max = max(x)
+  return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
+}
+sum_list = list('average_zoospore' = df_LSSP$ZE.avg.Bd, 'TTX' = df_LSSP$Predicted.whole.newt.TTX..mg., 'SVL' = df_LSSP$SVL_mm, 'Mass' = df_LSSP$Mass_g, 'Total_Length' = df_LSSP$TL_mm)
+summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
+summ
+
+males <- sum(df_LSSP$Sex == 'M')
+males
+females <- sum(df_LSSP$Sex == 'F')
+females
+
+Bd_zeros <- sum(df_LSSP$ZE.avg.Bd == 0)
+#This is to show how many zeroes are in the bd avg set
+Bd_zeros
+
+?ggpairs
+ggpairs(df_LSSP, cardinality_threshold = 24)
+
+#___assigned_Variables___
+
+Bd <- df_LSSP$ZE.avg.Bd
+TTX <- df_LSSP$Predicted.whole.newt.TTX..mg.
+mass <- df_LSSP$Mass_g
+svl <- df_LSSP$SVL_mm
+bd_presence <- df_LSSP$Bd_Presence
+total_length <- df_LSSP$TL_mm
+sex <- df_LSSP$Sex
+
+#____Graphs____
+ggplot(df_LSSP, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
+
+#________Correlational_tests________
+
+LSSP_glm1 = glm(data = df_LSSP, Bd_Presence ~ TTX, family = binomial)
+summary(LSSP_glm1)
+plot(allEffects(LSSP_glm1), type = 'response')
+
+log_bd <- log(df_LSSP$ZE.avg.Bd + 1)
+LSSP_lm1 = lm(data = df_LSSP, log_bd ~ TTX, family = binomial)
+summary(LSSP_lm1)
+plot(log_bd ~ TTX)
+
+sex_anova <- aov(TTX ~ df_LSSP$Sex)
+summary(sex_anova)
+
+bd_anova <- aov(log_bd ~ df_LSSP$Sex)
+summary(bd_anova)
+
+ttx_anova <- aov(df_LSSP$Predicted.whole.newt.TTX..mg. ~ log_bd)
+summary(ttx_anova)
+#___________________________________Only Positives____________________
+df2 <- subset(df_LSSP, ZE.avg.Bd > 0)
+df2
+
+pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
+pos_Bd <- df2$ZE.avg.Bd
+#____Graphs____
+gen_plot <- ggplot(df_LSSP, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX), size = 4.5)) + theme_classic()
+gen_plot
