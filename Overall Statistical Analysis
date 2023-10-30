@@ -248,6 +248,8 @@ ggplot(df, aes(Location, log_bd)) + geom_boxplot() + geom_jitter(width = 0.3, co
 #one-way
 trial <- aov(ZE.avg.Bd ~ Location, data = df)
 summary(trial)
+
+#one-way ANOVA with log transformed Bd load
 trial_2 <- aov(df$log_bd ~ Location, data = df)
 summary(trial_2)
 TukeyHSD(trial_2)
@@ -358,7 +360,7 @@ plot(allEffects(mine_four))
 
 
 df <- df[-which(is.na(df$Predicted.whole.newt.TTX..mg.)),]
-mine_mine <-glm(Bd_Presence ~ Predicted.whole.newt.TTX..mg., data = df1, family = binomial)
+mine_mine <-glm(Bd_Presence ~ Predicted.whole.newt.TTX..mg., data = df, family = binomial)
 summary(mine_mine)
 mine_five <- glm(Bd_Presence ~ Predicted.whole.newt.TTX..mg. * Location * Mass_g * SVL_mm, data = df1, family = binomial)
 summary(mine_five)
@@ -445,6 +447,7 @@ overall_mass_sex = lm(data = df, Predicted.whole.newt.TTX..mg. ~ Mass_g * Sex)
 summary(overall_mass_sex)
 plot(allEffects(overall_mass_sex), multiline = T, ci.style = 'band')
 boxplot(df$Mass_g ~ df$Sex)
+
 #___________TMC_Individual_Investigation____________
 plot(tmc_Bd_var ~ tmc_ttx_var)
 tmc_var <- subset(df1, Location == 'TMC')
