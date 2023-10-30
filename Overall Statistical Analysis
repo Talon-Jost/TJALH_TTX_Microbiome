@@ -4,18 +4,6 @@ use_git_config(user.name = 'Talon-Jost', user.email = 'talonjost@gmail.com')
 
 setwd("~/Documents/Thesis_Part_2/Newt_TTX_Project")
 rm(list=ls())
-
-packages <- c('dplyr', 'MASS', 'ggplot2', 'lme4', 'nlme', 'vegan', 'readr', 'plotrix', 'effects', 'remotes', 'MuMIn', 'ggtext', 'car', 'minpack.lm', 'mgcv', 'tidymv')
-
-installed_packages <- packages %in% rownames(installed.packages())
-if (any(installed_packages == FALSE)) {
-  install.packages(packages[!installed_packages])
-}
-
-#Packages loading
-invisible(lapply(packages, library, character.only = TRUE))
-
-#Packeges
 library(usethis)
 library(dplyr)
 library(MASS)
@@ -280,6 +268,7 @@ summary(quasi_reg)
 plot(allEffects(quasi_reg), type = 'response')
 
 
+
 #______________________________ALL TTX STUFF____________________________________#
 
 whole_ttx <- df1$Predicted.whole.newt.TTX..mg.
@@ -444,9 +433,18 @@ summary(new_trial2)
 plot(allEffects(new_trial2))
 ggplot(Bd_pos_df, aes(x = Predicted.whole.newt.TTX..mg., y = Bd_Presence)) + geom_smooth(method = 'glm', fill = '#0099FF', colour = 'black') + theme_classic() + xlab(bquote('TTX Concentration '(mg/cm^2))) + ylab ("Bd Presence") + ggtitle('Infection Present Sites Only') + theme(plot.title = element_text(hjust = 0.5))
 
+overall_sex_anova = aov(df$Predicted.whole.newt.TTX..mg. ~ df$Sex)
+summary(overall_sex_anova)
+overall_mass_lm = lm(data = df, Predicted.whole.newt.TTX..mg. ~ df$Mass_g)
+summary(overall_mass_lm)
 
+mass_sex_anova = aov(df$Mass_g ~ df$Sex)
+summary(mass_sex_anova)
 
-
+overall_mass_sex = lm(data = df, Predicted.whole.newt.TTX..mg. ~ Mass_g * Sex)
+summary(overall_mass_sex)
+plot(allEffects(overall_mass_sex), multiline = T, ci.style = 'band')
+boxplot(df$Mass_g ~ df$Sex)
 #___________TMC_Individual_Investigation____________
 plot(tmc_Bd_var ~ tmc_ttx_var)
 tmc_var <- subset(df1, Location == 'TMC')
@@ -490,7 +488,7 @@ summary(diversity_df)
 dim(diversity_df)
 
 
-#______________________________________________________________________________________________WBC Statistics___________________________________________________
+#________________________WBC Statistics_______________________-
 
 #______Data.frame import and basic exploration___
 setwd('~/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/WBC')
@@ -505,10 +503,10 @@ str(df_wbc)
 colSums(is.na(df_wbc))
 dim(df_wbc)
 
-bd_pos_sum <- sum(df_wbc$Bd_Presence == 1)
-bd_pos_sum
-bd_neg_sum <- sum(df_wbc$Bd_Presence == 0)
-bd_neg_sum
+wbc_bd_pos_sum <- sum(df_wbc$Bd_Presence == 1)
+wbc_bd_pos_sum
+wbc_bd_neg_sum <- sum(df_wbc$Bd_Presence == 0)
+wbc_bd_neg_sum
 
 basic_stuff = function(x) {
   mean = mean(x)
@@ -517,65 +515,55 @@ basic_stuff = function(x) {
   max = max(x)
   return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
 }
-sum_list = list('average_zoospore' = df_wbc$ZE.avg.Bd, 'TTX' = df_wbc$Predicted.whole.newt.TTX..mg., 'SVL' = df_wbc$SVL_mm, 'Mass' = df_wbc$Mass_g, 'Total_Length' = df_wbc$TL_mm)
-summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
-summ
+wbc_sum_list = list('average_zoospore' = df_wbc$ZE.avg.Bd, 'TTX' = df_wbc$Predicted.whole.newt.TTX..mg., 'SVL' = df_wbc$SVL_mm, 'Mass' = df_wbc$Mass_g, 'Total_Length' = df_wbc$TL_mm)
+wbc_summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
+wbc_summ
 
-males <- sum(df_wbc$Sex == 'M')
-males
-females <- sum(df_wbc$Sex == 'F')
-females
+wbc_males <- sum(df_wbc$Sex == 'M')
+wbc_males
+wbc_females <- sum(df_wbc$Sex == 'F')
+wbc_females
 
-Bd_zeros <- sum(df_wbc$ZE.avg.Bd == 0)
+wbc_Bd_zeros <- sum(df_wbc$ZE.avg.Bd == 0)
 #This is to show how many zeroes are in the bd avg set
-Bd_zeros
+wbc_Bd_zeros
 
 ?ggpairs
 ggpairs(df_wbc, cardinality_threshold = 24)
 
 #___assigned_Variables___
 
-Bd <- df_wbc$ZE.avg.Bd
-TTX <- df_wbc$Predicted.whole.newt.TTX..mg.
-mass <- df_wbc$Mass_g
-svl <- df_wbc$SVL_mm
-bd_presence <- df_wbc$Bd_Presence
-total_length <- df_wbc$TL_mm
-sex <- df_wbc$Sex
+wbc_Bd <- df_wbc$ZE.avg.Bd
+wbc_TTX <- df_wbc$Predicted.whole.newt.TTX..mg.
+wbc_mass <- df_wbc$Mass_g
+wbc_svl <- df_wbc$SVL_mm
+wbc_bd_presence <- df_wbc$Bd_Presence
+wbc_total_length <- df_wbc$TL_mm
+wbc_sex <- df_wbc$Sex
 
 #____Graphs____
 ggplot(df_wbc, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
 
 #________Correlational_tests________
 
-wbc_glm1 = glm(data = df_wbc, Bd_Presence ~ TTX, family = binomial)
-summary(wbc_glm1)
-plot(allEffects(wbc_glm1), type = 'response')
+wbc_test1 = glm()
 
-log_bd <- log(df_wbc$ZE.avg.Bd + 1)
-wbc_lm1 = lm(data = df_wbc, log_bd ~ TTX, family = binomial)
-summary(wbc_lm1)
-plot(log_bd ~ TTX)
 
-sex_anova <- aov(TTX ~ df_wbc$Sex)
-summary(sex_anova)
+#___________________________________Only_Positives____________________
+wbc_df2 <- subset(df_wbc, ZE.avg.Bd > 0)
+wbc_df2
 
-bd_anova <- aov(log_bd ~ df_wbc$Sex)
-summary(bd_anova)
-
-ttx_anova <- aov(df_wbc$Predicted.whole.newt.TTX..mg. ~ log_bd)
-summary(ttx_anova)
-#___________________________________Only Positives____________________
-df2 <- subset(df_wbc, ZE.avg.Bd > 0)
-df2
-
-pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
-pos_Bd <- df2$ZE.avg.Bd
+wbc_pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
+wbc_pos_Bd <- df2$ZE.avg.Bd
 #____Graphs____
-gen_plot <- ggplot(df2, aes(pos_TTX, pos_Bd)) + geom_point(aes(colour = factor(pos_TTX), size = 4.5)) + theme_classic()
-gen_plot
+wbc_gen_plot <- ggplot(df2, aes(pos_TTX, pos_Bd)) + geom_point(aes(colour = factor(pos_TTX), size = 4.5)) + theme_classic()
+wbc_gen_plot
 
-#______________________________________________________________________________GRP_Statistics_________________________________________________________
+
+
+
+
+#______________________GRP_Statistics_______________
 
 #______Data.frame import and basic exploration___
 setwd('/home/tally/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/GRP')
@@ -593,7 +581,7 @@ dim(df_grp)
 grp_bd_pos_sum <- sum(df_grp$Bd_Presence == 1)
 grp_bd_pos_sum
 grp_bd_neg_sum <- sum(df_grp$Bd_Presence == 0)
-grp_bd_neg_sum
+grp_d_neg_sum
 
 basic_stuff = function(x) {
   mean = mean(x)
@@ -603,7 +591,7 @@ basic_stuff = function(x) {
   return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
 }
 grp_sum_list = list('average_zoospore' = df_grp$ZE.avg.Bd, 'TTX' = df_grp$Predicted.whole.newt.TTX..mg., 'SVL' = df_grp$SVL_mm, 'Mass' = df_grp$Mass_g, 'Total_Length' = df_grp$TL_mm)
-grp_summ = sapply(grp_sum_list, basic_stuff, USE.NAMES = TRUE)
+grp_summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
 grp_summ
 
 grp_males <- sum(df_grp$Sex == 'M')
@@ -616,7 +604,7 @@ grp_Bd_zeros <- sum(df_grp$ZE.avg.Bd == 0)
 grp_Bd_zeros
 
 ?ggpairs
-ggpairs(df_grp, cardinality_threshold = 25)
+ggpairs(grp_df_grp, cardinality_threshold = 24)
 
 #___assigned_Variables___
 
@@ -628,32 +616,13 @@ grp_bd_presence <- df_grp$Bd_Presence
 grp_total_length <- df_grp$TL_mm
 grp_sex <- df_grp$Sex
 
-log_zoo <- log(grp_Bd + 1)
 #____Graphs____
-ggplot(df_grp, aes(grp_TTX, grp_Bd)) + geom_point(aes(colour = factor(grp_TTX))) + theme_classic()
+ggplot(df_grp, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
 
 #________Correlational_tests________
 
-glm_1_bd_pres_ttx = glm(grp_bd_presence ~ grp_TTX, family = binomial)
-summary(glm_1_bd_pres_ttx)
-plot(allEffects(glm_1_bd_pres_ttx))
+test1 = glm()
 
-glm_2_zoospore_ttx = glm(grp_bd_presence ~ grp_TTX, family = quasibinomial)
-summary(glm_2_zoospore_ttx)
-plot(allEffects(glm_2_zoospore_ttx))
-
-glm_3_pres_mass = glm(grp_bd_presence ~ grp_mass, family = quasibinomial)
-summary(glm_3_pres_mass)
-plot(allEffects(glm_3_pres_mass))
-
-aNova = aov(log_zoo ~ grp_sex)
-summary(aNova)
-
-linear <- lm(log_zoo ~ grp_TTX)
-summary(linear)
-
-dlskfjadj <- aov(grp_TTX ~ grp_bd_presence)
-summary(dlskfjadj)
 
 #___________________________________Only Positives____________________
 grp_df2 <- subset(df_grp, ZE.avg.Bd > 0)
@@ -661,347 +630,25 @@ grp_df2
 
 grp_pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
 grp_pos_Bd <- df2$ZE.avg.Bd
-
-
 #____Graphs____
 grp_gen_plot <- ggplot(df2, aes(pos_TTX, pos_Bd)) + geom_point(aes(colour = factor(pos_TTX), size = 4.5)) + theme_classic()
 grp_gen_plot
 
-#______________________________________________________________________SLNF_Statistics_________________________________________________________________________
 
-setwd('~/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/SLNF')
-list.files()
-df_slnf <- read.csv('SLNF_Whole_dataset.csv', header = TRUE)
-head(df_slnf, 4)
-summary(df_slnf)
-class(df_slnf$ZE.avg.Bd)
-nrow(df_slnf)
-ncol(df_slnf)
-str(df_slnf)
-colSums(is.na(df_slnf))
-dim(df_slnf)
 
-bd_pos_sum <- sum(df_slnf$Bd_Presence == 1)
-bd_pos_sum
-bd_neg_sum <- sum(df_slnf$Bd_Presence == 0)
-bd_neg_sum
 
-basic_stuff = function(x) {
-  mean = mean(x)
-  sd = sd(x)
-  min = min(x)
-  max = max(x)
-  return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
-}
-sum_list = list('average_zoospore' = df_slnf$ZE.avg.Bd, 'TTX' = df_slnf$Predicted.whole.newt.TTX..mg., 'SVL' = df_slnf$SVL_mm, 'Mass' = df_slnf$Mass_g, 'Total_Length' = df_slnf$TL_mm)
-summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
-summ
 
-males <- sum(df_slnf$Sex == 'M')
-males
-females <- sum(df_slnf$Sex == 'F')
-females
+#______________SLNF_Statistics_________________
 
-Bd_zeros <- sum(df_slnf$ZE.avg.Bd == 0)
-#This is to show how many zeroes are in the bd avg set
-Bd_zeros
 
-?ggpairs
-ggpairs(df_slnf, cardinality_threshold = 24)
+#______________TMC_Statistics__________________
 
-#___assigned_Variables___
 
-Bd <- df_slnf$ZE.avg.Bd
-TTX <- df_slnf$Predicted.whole.newt.TTX..mg.
-mass <- df_slnf$Mass_g
-svl <- df_slnf$SVL_mm
-bd_presence <- df_slnf$Bd_Presence
-total_length <- df_slnf$TL_mm
-sex <- df_slnf$Sex
+#______________LSSP_Statistics_________________
 
-#____Graphs____
-ggplot(df_slnf, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
 
-#________Correlational_tests________
+#______________FCSP_Statistics_________________
 
-slnf_glm1 = glm(data = df_slnf, Bd_Presence ~ TTX, family = binomial)
-summary(slnf_glm1)
-plot(allEffects(slnf_glm1), type = 'response')
-
-log_bd <- log(df_slnf$ZE.avg.Bd + 1)
-slnf_lm1 = lm(data = df_slnf, log_bd ~ TTX, family = binomial)
-summary(slnf_lm1)
-plot(log_bd ~ TTX)
-
-sex_anova <- aov(TTX ~ df_slnf$Sex)
-summary(sex_anova)
-
-bd_anova <- aov(log_bd ~ df_slnf$Sex)
-summary(bd_anova)
-
-ttx_anova <- aov(df_slnf$Predicted.whole.newt.TTX..mg. ~ log_bd)
-summary(ttx_anova)
-#___________________________________Only Positives____________________
-df2 <- subset(df_slnf, ZE.avg.Bd > 0)
-df2
-
-pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
-pos_Bd <- df2$ZE.avg.Bd
-#____Graphs____
-gen_plot <- ggplot(df_slnf, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX), size = 4.5)) + theme_classic()
-gen_plot
-
-#__________________________________________________________________TMC_Statistics______________________________________________________________________
-
-setwd('~/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/TMC')
-list.files()
-df_tmc <- read.csv('TMC_whole_dataset.csv', header = TRUE)
-head(df_tmc, 4)
-summary(df_tmc)
-class(df_tmc$ZE.avg.Bd)
-nrow(df_tmc)
-ncol(df_tmc)
-str(df_tmc)
-colSums(is.na(df_tmc))
-dim(df_tmc)
-
-bd_pos_sum <- sum(df_tmc$Bd_Presence == 1)
-bd_pos_sum
-bd_neg_sum <- sum(df_tmc$Bd_Presence == 0)
-bd_neg_sum
-
-basic_stuff = function(x) {
-  mean = mean(x)
-  sd = sd(x)
-  min = min(x)
-  max = max(x)
-  return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
-}
-sum_list = list('average_zoospore' = df_tmc$ZE.avg.Bd, 'TTX' = df_tmc$Predicted.whole.newt.TTX..mg., 'SVL' = df_tmc$SVL_mm, 'Mass' = df_tmc$Mass_g, 'Total_Length' = df_tmc$TL_mm)
-summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
-summ
-
-males <- sum(df_tmc$Sex == 'M')
-males
-females <- sum(df_tmc$Sex == 'F')
-females
-
-Bd_zeros <- sum(df_tmc$ZE.avg.Bd == 0)
-#This is to show how many zeroes are in the bd avg set
-Bd_zeros
-
-?ggpairs
-ggpairs(df_tmc, cardinality_threshold = 24)
-
-#___assigned_Variables___
-
-Bd <- df_tmc$ZE.avg.Bd
-TTX <- df_tmc$Predicted.whole.newt.TTX..mg.
-mass <- df_tmc$Mass_g
-svl <- df_tmc$SVL_mm
-bd_presence <- df_tmc$Bd_Presence
-total_length <- df_tmc$TL_mm
-sex <- df_tmc$Sex
-
-#____Graphs____
-ggplot(df_tmc, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
-
-#________Correlational_tests________
-
-tmc_glm1 = glm(data = df_tmc, Bd_Presence ~ TTX, family = binomial)
-summary(tmc_glm1)
-plot(allEffects(tmc_glm1), type = 'response')
-
-log_bd <- log(df_tmc$ZE.avg.Bd + 1)
-tmc_lm1 = lm(data = df_tmc, log_bd ~ TTX, family = binomial)
-summary(tmc_lm1)
-plot(log_bd ~ TTX)
-
-sex_anova <- aov(TTX ~ df_tmc$Sex)
-summary(sex_anova)
-
-bd_anova <- aov(log_bd ~ df_tmc$Sex)
-summary(bd_anova)
-
-ttx_anova <- aov(df_tmc$Predicted.whole.newt.TTX..mg. ~ log_bd)
-summary(ttx_anova)
-#___________________________________Only Positives____________________
-df2 <- subset(df_tmc, ZE.avg.Bd > 0)
-df2
-
-pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
-pos_Bd <- df2$ZE.avg.Bd
-#____Graphs____
-tmc_gen_plot <- ggplot(df_tmc, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX), size = 4.5)) + theme_classic()
-tmc_gen_plot
-
-#__________________________________________________________________LSSP_Statistics_____________________________________________________________________
-
-setwd('~/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/LSSP')
-list.files()
-df_LSSP <- read.csv('LSSP_Whole_Dataset.csv', header = TRUE)
-head(df_LSSP, 4)
-summary(df_LSSP)
-class(df_LSSP$ZE.avg.Bd)
-nrow(df_LSSP)
-ncol(df_LSSP)
-str(df_LSSP)
-colSums(is.na(df_LSSP))
-dim(df_LSSP)
-
-bd_pos_sum <- sum(df_LSSP$Bd_Presence == 1)
-bd_pos_sum
-bd_neg_sum <- sum(df_LSSP$Bd_Presence == 0)
-bd_neg_sum
-
-basic_stuff = function(x) {
-  mean = mean(x)
-  sd = sd(x)
-  min = min(x)
-  max = max(x)
-  return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
-}
-sum_list = list('average_zoospore' = df_LSSP$ZE.avg.Bd, 'TTX' = df_LSSP$Predicted.whole.newt.TTX..mg., 'SVL' = df_LSSP$SVL_mm, 'Mass' = df_LSSP$Mass_g, 'Total_Length' = df_LSSP$TL_mm)
-summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
-summ
-
-males <- sum(df_LSSP$Sex == 'M')
-males
-females <- sum(df_LSSP$Sex == 'F')
-females
-
-Bd_zeros <- sum(df_LSSP$ZE.avg.Bd == 0)
-#This is to show how many zeroes are in the bd avg set
-Bd_zeros
-
-?ggpairs
-ggpairs(df_LSSP, cardinality_threshold = 24)
-
-#___assigned_Variables___
-
-Bd <- df_LSSP$ZE.avg.Bd
-TTX <- df_LSSP$Predicted.whole.newt.TTX..mg.
-mass <- df_LSSP$Mass_g
-svl <- df_LSSP$SVL_mm
-bd_presence <- df_LSSP$Bd_Presence
-total_length <- df_LSSP$TL_mm
-sex <- df_LSSP$Sex
-
-#____Graphs____
-ggplot(df_LSSP, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
-
-#________Correlational_tests________
-
-LSSP_glm1 = glm(data = df_LSSP, Bd_Presence ~ TTX, family = binomial)
-summary(LSSP_glm1)
-plot(allEffects(LSSP_glm1), type = 'response')
-
-log_bd <- log(df_LSSP$ZE.avg.Bd + 1)
-LSSP_lm1 = lm(data = df_LSSP, log_bd ~ TTX, family = binomial)
-summary(LSSP_lm1)
-plot(log_bd ~ TTX)
-
-sex_anova <- aov(TTX ~ df_LSSP$Sex)
-summary(sex_anova)
-
-bd_anova <- aov(log_bd ~ df_LSSP$Sex)
-summary(bd_anova)
-
-ttx_anova <- aov(df_LSSP$Predicted.whole.newt.TTX..mg. ~ log_bd)
-summary(ttx_anova)
-#___________________________________Only Positives____________________
-df2 <- subset(df_LSSP, ZE.avg.Bd > 0)
-df2
-
-pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
-pos_Bd <- df2$ZE.avg.Bd
-#____Graphs____
-gen_plot <- ggplot(df_LSSP, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX), size = 4.5)) + theme_classic()
-gen_plot
-
-#______________________________________________________________________FCSP_Statistics_________________________________________________________________________
-
-setwd('~/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/fscp')
-list.files()
-df_fscp <- read.csv('FSCP_whole_dataset.csv', header = TRUE)
-head(df_fscp, 4)
-summary(df_fscp)
-class(df_fscp$ZE.avg.Bd)
-nrow(df_fscp)
-ncol(df_fscp)
-str(df_fscp)
-colSums(is.na(df_fscp))
-dim(df_fscp)
-
-bd_pos_sum <- sum(df_fscp$Bd_Presence == 1)
-bd_pos_sum
-bd_neg_sum <- sum(df_fscp$Bd_Presence == 0)
-bd_neg_sum
-
-basic_stuff = function(x) {
-  mean = mean(x)
-  sd = sd(x)
-  min = min(x)
-  max = max(x)
-  return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
-}
-sum_list = list('average_zoospore' = df_fscp$ZE.avg.Bd, 'TTX' = df_fscp$Predicted.whole.newt.TTX..mg., 'SVL' = df_fscp$SVL_mm, 'Mass' = df_fscp$Mass_g, 'Total_Length' = df_fscp$TL_mm)
-summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
-summ
-
-males <- sum(df_fscp$Sex == 'M')
-males
-females <- sum(df_fscp$Sex == 'F')
-females
-
-Bd_zeros <- sum(df_fscp$ZE.avg.Bd == 0)
-#This is to show how many zeroes are in the bd avg set
-Bd_zeros
-
-?ggpairs
-ggpairs(df_fscp, cardinality_threshold = 24)
-
-#___assigned_Variables___
-
-Bd <- df_fscp$ZE.avg.Bd
-TTX <- df_fscp$Predicted.whole.newt.TTX..mg.
-mass <- df_fscp$Mass_g
-svl <- df_fscp$SVL_mm
-bd_presence <- df_fscp$Bd_Presence
-total_length <- df_fscp$TL_mm
-sex <- df_fscp$Sex
-
-#____Graphs____
-ggplot(df_fscp, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
-
-#________Correlational_tests________
-
-fscp_glm1 = glm(data = df_fscp, Bd_Presence ~ TTX, family = binomial)
-summary(fscp_glm1)
-plot(allEffects(fscp_glm1), type = 'response')
-
-log_bd <- log(df_fscp$ZE.avg.Bd + 1)
-fscp_lm1 = lm(data = df_fscp, log_bd ~ TTX, family = binomial)
-summary(fscp_lm1)
-plot(log_bd ~ TTX)
-
-sex_anova <- aov(TTX ~ df_fscp$Sex)
-summary(sex_anova)
-
-bd_anova <- aov(log_bd ~ df_fscp$Sex)
-summary(bd_anova)
-
-ttx_anova <- aov(df_fscp$Predicted.whole.newt.TTX..mg. ~ log_bd)
-summary(ttx_anova)
-#___________________________________Only Positives____________________
-df2 <- subset(df_fscp, ZE.avg.Bd > 0)
-df2
-
-pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
-pos_Bd <- df2$ZE.avg.Bd
-#____Graphs____
-gen_plot <- ggplot(df2, aes(pos_TTX, pos_Bd)) + geom_point(aes(colour = factor(pos_TTX), size = 4.5)) + theme_classic()
-gen_plot
 
 
 #__________Alpha hat________
