@@ -1,0 +1,176 @@
+---
+title: "T_granulosa_stats"
+author: "Talon_Jost"
+date: "2023-10-27"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+library(usethis)
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(lme4) 
+library(nlme)
+library(vegan)
+library(readr)
+library(plotrix)
+library(reticulate)
+library(effects)
+library(remotes)
+library(MuMIn)
+library(ggtext)
+library(car)
+library(MuMIn)
+library(minpack.lm)
+#remotes::install_github('ProcessMiner/nlcor')
+library(nlcor)
+#remotes::install_github('femiguez/nlraa')
+library(nlraa)
+library(mgcv)
+library(tidymv)
+#remotes::install_github("gavinsimpson/gratia")
+library(gratia)
+```
+
+
+#Getting a dataset imported to start working with.
+```{r start, echo=TRUE}
+df <- read.csv('TJAH_TTX_DATA_CLEANED.csv', header = TRUE)
+#dataset imported, there is an NA on FCSP-05 in the column Predicted.whole.newt.ttx..mg.
+head(df, 4)
+summary(df)
+dim(df)
+nrow(df)
+ncol(df)
+str(df)
+colSums(is.na(df))
+
+#number of overall individuals with Bd
+pos_bd <- sum(df$Bd_Presence == '1')
+pos_bd
+neg_bd <- sum(df$Bd_Presence == '0')
+neg_bd
+
+#sex distribution
+total_males <- sum(df$Sex == 'M')
+print(total_males)
+
+total_females <- sum(df$Sex == 'F')
+print(total_females)
+
+```
+
+```{r diversity, echo = TRUE}
+df_diversity <- read.csv('TJALH_Metadata_Diversity.csv')
+#changing the name of the variable 'Predicted Whole Newt TTX (mg)' was more accessible
+names(df_diversity)[22] = 'Whole_TTX'
+#changing several variables to numeric as they were classified incorrectly due to the presence of N/As
+df_diversity$Whole_TTX = as.numeric(df_diversity$Whole_TTX)
+df_diversity$Mass_g = as.numeric(df_diversity$Mass_g)
+df_diversity$Bd_Presence = as.numeric(df_diversity$Bd_Presence)
+df_diversity$shannon = as.numeric(df_diversity$shannon)
+```
+
+
+#Some preliminary investigations into zoospores
+```{r zoospores, echo=TRUE}
+##ALL ZOOSPORE STUFF##
+#______________________________________________________________________________________
+#total zoospore average
+df1 <- df %>%
+  mutate(Predicted.whole.newt.TTX..mg. = if_else(is.na(Predicted.whole.newt.TTX..mg.), 0, Predicted.whole.newt.TTX..mg.))
+#when you open up the data set as is, it gives weird 'na' lines for no reason so I use the next code to clear it
+df1 <- na.omit(df1)
+summary(df1)
+names(df)
+summary(df)
+total_zoospore_std_error <- print(std.error(df$ZE.avg.Bd))
+
+total_max_zoospore <- print(max(df$ZE.avg.Bd))
+total_min_zoospore <- print(min(df$ZE.avg.Bd))
+total_mean_zoospore <- print(mean(df$ZE.avg.Bd))
+
+#straight boxplot of zoospore average and location
+boxplot(df$ZE.avg.Bd ~ df$Location)
+#quite high outlier in SLNF just based on the boxplot but the rest look okay. SLNF-01 has zoospore of 17,400
+
+#regular histogram no transformation
+hist(df$ZE.avg.Bd)
+hist(log(df$ZE.avg.Bd +1))
+log_bd <- log(df1$ZE.avg.Bd + 1)
+df$log_bd <- log(df$ZE.avg.Bd +1)
+
+#new boxplot with log transformed data
+boxplot(df$log_bd ~ df$Location)
+abline(h = 1)
+ggplot(df, aes(Location, log_bd)) + geom_boxplot() + geom_jitter(width = 0.3, colour = 4, size = 1) + xlab('Location') + ylab(bquote('Bd Infection Intensity ' (Log[10]+1))) + theme_classic() + theme(axis.text.x = element_text(angle = 45, hjust = 1.1), plot.title = element_text(hjust = 0.5)) + ggtitle('Bd Infection Intensity by Location') 
+
+```
+
+
+#Running multivairate statistics with one diversity metric with site included as a random variable
+
+```{r multivariate_1, echo=TRUE}
+bd_presence_overall_multivariate <- glmer(data = df_diversity, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon + (1 | Site), family = binomial)
+summary(bd_presence_overall_multivariate)
+Anova(bd_presence_overall_multivariate, type = 3)
+plot(allEffects(bd_presence_overall_multivariate), multiline = T, ci.style = 'band')
+```
+
+#Taking only the sites with positive Bd Presence to run the same multivariate analyses on them to document any change. 
+
+```{r positive_multivariate, echo = TRUE}
+positive <- subset(df_diversity, Site %in% (c('GRP', 'SLNF', 'TMC', 'WBC')))
+bd_presence_overall_multivariate <- glmer(data = positive, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon + (1 | Site), family = binomial)
+summary(bd_presence_overall_multivariate)
+plot(allEffects(bd_presence_overall_multivariate), multiline = T, ci.style = 'band')
+plot(allEffects(bd_presence_overall_multivariate), multiline = T, ci.style = 'band', type = 'response')
+table(positive$Bd_Presence, positive$Sex)
+Anova(bd_presence_overall_multivariate, type = 3)
+```
+
+
+#Running the same as above as a linear model with shannon included but WITHOUT site as a quasibinomial to observe the change in p-value. 
+
+```{r multivariate_2, echo = TRUE}
+multivariate_2 <- glm(data = positive, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon, family = quasibinomial)
+summary(multivariate_2)
+Anova(multivariate_2, type = 3)
+```
+
+#Running the same as above as a linear model with shannon included but WITH site as a quasibinomial to observe the change in p-value. These throw an error in RMarkdown but you can view the results if you run it yourself 
+
+```{r multivariate_3, echo = TRUE}
+#multivariate_3 <- glm(data = positive, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon * Site, family = quasibinomial)
+#summary(multivariate_3)
+#Anova(multivariate_3, type = 3)
+```
+
+
+#Subsetting by site once again to delete TMC which only had 1 Male
+
+```{r subset_2, echo = TRUE}
+tmc_absent <- subset(df_diversity, Site %in% (c('GRP', 'SLNF', 'WBC')))
+```
+
+
+#running a glmer on variables with a binomial distribution assumed with site as a random variable
+```{r tmc_multi, echo = TRUE}
+tmc_multi <- glmer(data = tmc_absent, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon + (1 | Site), family = binomial)
+summary(tmc_multi)
+```
+
+
+#another multivariate but running with a quasibinomial family assumption with two types of ANOVA attempted to look at model results. These throw an error in RMarkdown but you can view the results if you run it yourself
+```{r multivariate_4, echo=TRUE}
+#multivariate_4 <- glm(data = tmc_absent, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon * Site, family = quasibinomial)
+#summary(multivariate_4)
+#Anova(multivariate_4, type = 3)
+#Anova(multivariate_4, type = 2)
+```
+
+
+
