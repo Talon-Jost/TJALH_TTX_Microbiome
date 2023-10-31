@@ -1,0 +1,427 @@
+---
+title: "T_granulosa_stats"
+author: "Talon_Jost"
+date: "2023-10-27"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+library(usethis)
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(lme4) 
+library(nlme)
+library(vegan)
+library(readr)
+library(plotrix)
+library(reticulate)
+library(effects)
+library(remotes)
+library(MuMIn)
+library(ggtext)
+library(car)
+library(MuMIn)
+library(minpack.lm)
+#remotes::install_github('ProcessMiner/nlcor')
+library(nlcor)
+#remotes::install_github('femiguez/nlraa')
+library(nlraa)
+library(mgcv)
+library(tidymv)
+#remotes::install_github("gavinsimpson/gratia")
+library(gratia)
+```
+
+
+#Getting a dataset imported to start working with.
+```{r start, echo=TRUE}
+df <- read.csv('TJAH_TTX_DATA_CLEANED.csv', header = TRUE)
+#dataset imported, there is an NA on FCSP-05 in the column Predicted.whole.newt.ttx..mg.
+head(df, 4)
+summary(df)
+dim(df)
+nrow(df)
+ncol(df)
+str(df)
+colSums(is.na(df))
+
+#number of overall individuals with Bd
+pos_bd <- sum(df$Bd_Presence == '1')
+pos_bd
+neg_bd <- sum(df$Bd_Presence == '0')
+neg_bd
+
+#sex distribution
+total_males <- sum(df$Sex == 'M')
+print(total_males)
+
+total_females <- sum(df$Sex == 'F')
+print(total_females)
+
+```
+
+```{r zoospore_original, echo=TRUE}
+##ALL ZOOSPORE STUFF##
+#______________________________________________________________________________________
+#total zoospore average
+total_zoospore_std_error <- print(std.error(df$ZE.avg.Bd))
+
+total_max_zoospore <- print(max(df$ZE.avg.Bd))
+total_min_zoospore <- print(min(df$ZE.avg.Bd))
+total_mean_zoospore <- print(mean(df$ZE.avg.Bd))
+
+#straight boxplot of zoospore average and location
+boxplot(df$ZE.avg.Bd ~ df$Location)
+#quite high outlier in SLNF just based on the boxplot but the rest look okay. SLNF-01 has zoospore of 17,400
+```
+
+
+#regular histogram no transformation
+```{r zoospore_2, echo=TRUE}
+hist(df$ZE.avg.Bd)
+
+```
+
+#log10 transformed zoospore
+```{r logzoo, echo=TRUE}
+log_bd <- log(df1$ZE.avg.Bd + 1)
+df$log_bd <- log(df$ZE.avg.Bd +1)
+
+```
+
+#new boxplot with log transformed data
+```{r zoospore_3, echo=TRUE}
+boxplot(df$log_bd ~ df$Location)
+abline(h = 1)
+ggplot(df, aes(Location, log_bd)) + geom_boxplot() + geom_jitter(width = 0.3, colour = 4, size = 1) + xlab('Location') + ylab(bquote('Bd Infection Intensity ' (Log[10]+1))) + theme_classic() + theme(axis.text.x = element_text(angle = 45, hjust = 1.1), plot.title = element_text(hjust = 0.5)) + ggtitle('Bd Infection Intensity by Location') 
+```
+
+#Bd table to look at bd positive/negative by location
+```{r bd_table, echo=TRUE}
+bd_pres <- table(df$Bd_Presence, df$Location)
+bd_pres
+```
+
+#GLM using bd presence by location with the summary
+```{}
+#location doesn't explain
+reg <- glm(data = df, Bd_Presence ~ Location, family = 'binomial')
+reg
+summary(reg)
+```
+#checking the psudo-r
+```{r pseudo, echo=TRUE}
+pseudo <- (reg$null.deviance - reg$deviance)/reg$null.deviance
+pseudo
+```
+#response plot of reg glm
+```{}
+plot(allEffects(reg), type = 'response')
+```
+
+```{r quasi_binomial, echo=TRUE}
+quasi_reg <- glm(data = df, Bd_Presence ~ Location, family = quasibinomial())
+summary(quasi_reg)
+plot(allEffects(quasi_reg), type = 'response')
+```
+
+#Plot for making ttx by location and actually making it look good
+```{r ttx_site_plot, echo=TRUE}
+whole_ttx <- df1$Predicted.whole.newt.TTX..mg.
+Mean_TTX <- df1 %>% group_by(Location) %>% summarise(mean_ttx=mean(Predicted.whole.newt.TTX..mg.))
+Mean_TTX
+new_ttx <- Mean_TTX
+plot(whole_ttx)
+hist(whole_ttx)
+ggplot(df1, aes(x = SwabID, y = whole_ttx)) + geom_point(stat = 'identity', aes(col = Location), size = 1) + geom_hline(data = Mean_TTX, aes(yintercept = mean_ttx, col = Location))  + theme(axis.text.x = element_text(angle = 90, hjust = 1.1)) + ylab(bquote('TTX Concentration '(mg/cm^2))) + xlab('Sample ID')
+ggplot(df1, aes(x = SwabID, y = whole_ttx, group = Location)) + geom_point(stat = 'identity', aes(col = Location), size = 1) + geom_hline(data = Mean_TTX, aes(yintercept = mean_ttx, col = Location))  + theme(axis.text.x = element_text(angle = 90, hjust = 1.1)) + ylab(bquote('TTX Concentration '(mg/cm^2))) + xlab('Sample ID') + facet_grid(.~Location, space = 'free', scales = 'free_x')
+```
+
+
+#ttx by location graph
+```{r ttx_location_graph, echo=TRUE}
+ggplot(df, aes(x = Location, y = Predicted.whole.newt.TTX..mg.)) + geom_boxplot() + theme_classic() + xlab('Location') + ylab(expression(paste("Tetrodotoxin Concentration (mg/", cm^2, ")"))) + theme(axis.title = element_text(size = 20))
+```
+
+#ttx by location ANOVA
+```{r ttx_location_anova, echo=TRUE}
+ttx_aov <- aov(Predicted.whole.newt.TTX..mg. ~ Location, data = df)
+summary(ttx_aov)
+TukeyHSD(ttx_aov)
+```
+
+#some more graphs
+```{r more_graphs, echo=TRUE}
+ggplot(df, aes(x = Location, y = log_bd)) + geom_boxplot() + theme_classic() +xlab('Location') + ylab('Bd Zoospore Equivalance Log10 + 1') + theme(axis.title = element_text(size = 20))
+abline(h = 1)
+plot(ZE.avg.Bd ~ Predicted.whole.newt.TTX..mg., data = df)
+plot(log_bd ~ log_ttx)
+plot(log_bd ~ Predicted.whole.newt.TTX..mg., data = df)
+```
+
+#new ttx GLM
+```{r ttx_pres_glm, echo=TRUE}
+new_ttx_pres <- glm(data = df, Bd_Presence ~ Predicted.whole.newt.TTX..mg., family = quasibinomial())
+summary(new_ttx_pres)
+plot(allEffects(new_ttx_pres))
+```
+
+#bd by ttx and location with anova and effects plot
+```{r ttx_with_location, echo=TRUE}
+location_ttx_pres <- glm(data = df, Bd_Presence ~ Predicted.whole.newt.TTX..mg. * Location, family = quasibinomial())
+summary(location_ttx_pres)
+Anova(location_ttx_pres, type = 3)
+plot(allEffects(location_ttx_pres), type = 'response', multiline = F, ci.style = 'band', x.var = 'Predicted.whole.newt.TTX..mg.')
+```
+#linear regression of log10 transformed Bd and whole ttx with effects plot
+```{r mine_two, echo=TRUE}
+mine_two <- lm(log_bd ~ Predicted.whole.newt.TTX..mg., data = df)
+summary(mine_two)
+effect_real <- (allEffects(mine_two))
+plot(effect_real)
+plot(mine_two)
+```
+#basic analysis with only positive individuals
+```{r bdPos_subset, echo=TRUE}
+positives <- subset(df, ZE.avg.Bd > 0)
+hist(positives$log_bd)
+new_plot <- plot(log_bd ~ Predicted.whole.newt.TTX..mg., data = positives)
+abline(new_plot)
+
+males <- subset(df, Sex == 'M')
+print(mean(males$Mass_g))
+print(mean(males$SVL_mm))
+print(mean(males$ZE.avg.Bd))
+print(mean(males$Predicted.whole.newt.TTX..mg.))
+
+females <- subset(df, Sex == 'F')
+print(mean(females$Mass_g))
+print(mean(females$SVL_mm))
+print(mean(females$ZE.avg.Bd))
+print(mean(females$Predicted.whole.newt.TTX..mg.))
+```
+#linear regression with the positives dataset
+```{r new_linear_3, echo=TRUE}
+mine_three_maybe <- lm(log_bd ~ Predicted.whole.newt.TTX..mg., data = positives)
+summary(mine_three)
+plot(mine_three)
+```
+
+#changing the bd zoospore to numeric as there was an issue with it coming back as a character, causing a test failure.
+```{r mine_four, echo=TRUE}
+df$infected <- as.numeric(df$ZE.avg.Bd > 0)
+mine_four <- glm(infected ~ Predicted.whole.newt.TTX..mg., data = df, family = quasibinomial)
+summary(mine_four)
+plot(mine_four)
+plot(allEffects(mine_four))
+```
+
+#glm of bd presence and TTX again, binomial this time
+```{r glm_ttx_bd, echo=TRUE}
+mine_mine <-glm(Bd_Presence ~ Predicted.whole.newt.TTX..mg., data = df, family = binomial)
+summary(mine_mine)
+```
+
+#multivariate glm using several factors
+```{r multivariate_glm, echo=TRUE}
+mine_five <- glm(Bd_Presence ~ Predicted.whole.newt.TTX..mg. * Location * Mass_g * SVL_mm, data = df1, family = binomial)
+summary(mine_five)
+```
+
+#Dredging mine_five output with anova as well
+```{r dredge, echo=TRUE}
+Anova(mine_five, type = 3)
+options(na.action='na.fail')
+options(na.action(na.omit))
+my_dredge <- dredge(mine_five)
+```
+
+
+#All sites with Bd in them plus an anova
+```{r positive_sites, echo=TRUE}
+Bd_pos_df <- subset(df, Location %in% (c('GRP', 'SLNF', 'TMC', 'WBC')))
+pos_TTX <- Bd_pos_df$Predicted.whole.newt.TTX..mg.
+avg_bd <- Bd_pos_df$ZE.avg.Bd
+pos_site <- Bd_pos_df$Location
+
+site_anova <- aov(avg_bd ~ pos_site)
+summary(site_anova)
+site_ttx_anova <- aov(pos_TTX ~ pos_site)
+summary(site_ttx_anova)
+```
+
+#positive log_bd_site anova
+```[r pos_site_anova, echo=TRUE]
+positive_site_bd <- log(Bd_pos_df$ZE.avg.Bd + 1)
+log_anova <- aov(positive_site_bd ~ pos_site)
+summary(log_anova)
+```
+
+#glm with anova and effects plot of positive site bd
+```{r site_trial_glm, echo=TRUE}
+site_trial <- glm(Bd_Presence ~ pos_site, data = Bd_pos_df, family = binomial)
+summary(site_trial)
+plot(allEffects(site_trial), type = 'response')
+Anova(site_trial, type = 3)
+```
+
+#table to check
+```{r table, echo=TRUE}
+table(pos_site)
+```
+
+#glm of bd to ttx with positive sites with anova
+```{r bd_ttx, echo=TRUE}
+bd_ttx_bdpos <- glm(Bd_Presence ~ pos_TTX, data = Bd_pos_df, family = binomial)
+summary(bd_ttx_bdpos)
+Anova(bd_ttx_bdpos, Type = 3)
+```
+
+#bd pres vs ttx glm for positive sites overall with plots
+```{}
+new_trial2 <- glm(Bd_Presence ~ Predicted.whole.newt.TTX..mg., data = Bd_pos_df, family = binomial)
+summary(new_trial2)
+plot(allEffects(new_trial2))
+ggplot(Bd_pos_df, aes(x = Predicted.whole.newt.TTX..mg., y = Bd_Presence)) + geom_smooth(method = 'glm', fill = '#0099FF', colour = 'black') + theme_classic() + xlab(bquote('TTX Concentration '(mg/cm^2))) + ylab ("Bd Presence") + ggtitle('Infection Present Sites Only') + theme(plot.title = element_text(hjust = 0.5))
+```
+
+#anova of ttx by sex
+```{r sex_anova}
+overall_sex_anova = aov(df$Predicted.whole.newt.TTX..mg. ~ df$Sex)
+summary(overall_sex_anova)
+```
+
+#linear regression of ttx by mass
+```{}
+overall_mass_lm = lm(data = df, Predicted.whole.newt.TTX..mg. ~ df$Mass_g)
+summary(overall_mass_lm)
+```
+
+#anova of mass and sex
+```{r mass_sex_anova, echo=TRUE}
+mass_sex_anova = aov(df$Mass_g ~ df$Sex)
+summary(mass_sex_anova)
+```
+
+#overall linear regression with ttx, mass, and sex with plots
+```{r mass_sex_ttx, echo=TRUE}
+overall_mass_sex = lm(data = df, Predicted.whole.newt.TTX..mg. ~ Mass_g * Sex)
+summary(overall_mass_sex)
+plot(allEffects(overall_mass_sex), multiline = T, ci.style = 'band')
+boxplot(df$Mass_g ~ df$Sex)
+```
+
+```{r diversity, echo = TRUE}
+df_diversity <- read.csv('TJALH_Metadata_Diversity.csv')
+#changing the name of the variable 'Predicted Whole Newt TTX (mg)' was more accessible
+names(df_diversity)[22] = 'Whole_TTX'
+#changing several variables to numeric as they were classified incorrectly due to the presence of N/As
+df_diversity$Whole_TTX = as.numeric(df_diversity$Whole_TTX)
+df_diversity$Mass_g = as.numeric(df_diversity$Mass_g)
+df_diversity$Bd_Presence = as.numeric(df_diversity$Bd_Presence)
+df_diversity$shannon = as.numeric(df_diversity$shannon)
+```
+
+
+#Some preliminary investigations into zoospores
+```{r zoospores, echo=TRUE}
+##ALL ZOOSPORE STUFF##
+#______________________________________________________________________________________
+#total zoospore average
+df1 <- df %>%
+  mutate(Predicted.whole.newt.TTX..mg. = if_else(is.na(Predicted.whole.newt.TTX..mg.), 0, Predicted.whole.newt.TTX..mg.))
+#when you open up the data set as is, it gives weird 'na' lines for no reason so I use the next code to clear it
+df1 <- na.omit(df1)
+summary(df1)
+names(df)
+summary(df)
+total_zoospore_std_error <- print(std.error(df$ZE.avg.Bd))
+
+total_max_zoospore <- print(max(df$ZE.avg.Bd))
+total_min_zoospore <- print(min(df$ZE.avg.Bd))
+total_mean_zoospore <- print(mean(df$ZE.avg.Bd))
+
+#straight boxplot of zoospore average and location
+boxplot(df$ZE.avg.Bd ~ df$Location)
+#quite high outlier in SLNF just based on the boxplot but the rest look okay. SLNF-01 has zoospore of 17,400
+
+#regular histogram no transformation
+hist(df$ZE.avg.Bd)
+hist(log(df$ZE.avg.Bd +1))
+log_bd <- log(df1$ZE.avg.Bd + 1)
+df$log_bd <- log(df$ZE.avg.Bd +1)
+
+#new boxplot with log transformed data
+boxplot(df$log_bd ~ df$Location)
+abline(h = 1)
+ggplot(df, aes(Location, log_bd)) + geom_boxplot() + geom_jitter(width = 0.3, colour = 4, size = 1) + xlab('Location') + ylab(bquote('Bd Infection Intensity ' (Log[10]+1))) + theme_classic() + theme(axis.text.x = element_text(angle = 45, hjust = 1.1), plot.title = element_text(hjust = 0.5)) + ggtitle('Bd Infection Intensity by Location') 
+
+```
+
+
+#Running multivairate statistics with one diversity metric with site included as a random variable
+
+```{r multivariate_1, echo=TRUE}
+bd_presence_overall_multivariate <- glmer(data = df_diversity, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon + (1 | Site), family = binomial)
+summary(bd_presence_overall_multivariate)
+Anova(bd_presence_overall_multivariate, type = 3)
+plot(allEffects(bd_presence_overall_multivariate), multiline = T, ci.style = 'band')
+```
+
+#Taking only the sites with positive Bd Presence to run the same multivariate analyses on them to document any change. 
+
+```{r positive_multivariate, echo = TRUE}
+positive <- subset(df_diversity, Site %in% (c('GRP', 'SLNF', 'TMC', 'WBC')))
+bd_presence_overall_multivariate <- glmer(data = positive, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon + (1 | Site), family = binomial)
+summary(bd_presence_overall_multivariate)
+plot(allEffects(bd_presence_overall_multivariate), multiline = T, ci.style = 'band')
+plot(allEffects(bd_presence_overall_multivariate), multiline = T, ci.style = 'band', type = 'response')
+table(positive$Bd_Presence, positive$Sex)
+Anova(bd_presence_overall_multivariate, type = 3)
+```
+
+
+#Running the same as above as a linear model with shannon included but WITHOUT site as a quasibinomial to observe the change in p-value. 
+
+```{r multivariate_2, echo = TRUE}
+multivariate_2 <- glm(data = positive, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon, family = quasibinomial)
+summary(multivariate_2)
+Anova(multivariate_2, type = 3)
+```
+
+#Running the same as above as a linear model with shannon included but WITH site as a quasibinomial to observe the change in p-value. These throw an error in RMarkdown but you can view the results if you run it yourself 
+
+```{r multivariate_3, echo = TRUE}
+#multivariate_3 <- glm(data = positive, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon * Site, family = quasibinomial)
+#summary(multivariate_3)
+#Anova(multivariate_3, type = 3)
+```
+
+
+#Subsetting by site once again to delete TMC which only had 1 Male
+
+```{r subset_2, echo = TRUE}
+tmc_absent <- subset(df_diversity, Site %in% (c('GRP', 'SLNF', 'WBC')))
+```
+
+
+#running a glmer on variables with a binomial distribution assumed with site as a random variable
+```{r tmc_multi, echo = TRUE}
+tmc_multi <- glmer(data = tmc_absent, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon + (1 | Site), family = binomial)
+summary(tmc_multi)
+```
+
+
+#another multivariate but running with a quasibinomial family assumption with two types of ANOVA attempted to look at model results. These throw an error in RMarkdown but you can view the results if you run it yourself
+```{r multivariate_4, echo=TRUE}
+#multivariate_4 <- glm(data = tmc_absent, Bd_Presence ~ Whole_TTX * Mass_g * Sex * shannon * Site, family = quasibinomial)
+#summary(multivariate_4)
+#Anova(multivariate_4, type = 3)
+#Anova(multivariate_4, type = 2)
+```
+
+
+

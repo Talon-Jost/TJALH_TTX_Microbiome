@@ -1,0 +1,934 @@
+# Tous les packages utilises dans le script
+
+# library(installr)
+# updateR()
+
+# install.packages("BiocManager")
+# install.packages("devtools")
+# install.packages("ggplot2")
+# install.packages("vegan")
+# install.packages("dplyr")
+# install.packages("installr")
+
+# library(BiocManager)
+# library(devtools)
+
+# BiocManager::install("phyloseq")
+# devtools::install_github("benjjneb/decontam")
+# devtools::install_github("grunwaldlab/metacoder")
+# devtools::install_github("benjjneb/dada2", ref="v1.16")
+
+library(dada2); packageVersion("dada2")
+library(phyloseq); packageVersion("phyloseq")
+library(Biostrings); packageVersion("Biostrings")
+library(ggplot2); packageVersion("ggplot2")
+library(decontam); packageVersion("decontam")
+library(metacoder); packageVersion("metacoder")
+library(dplyr); packageVersion("dplyr")
+library(vegan); packageVersion("vegan")
+library(DECIPHER); packageVersion("DECIPHER")
+
+setwd("~/UL/3eme_cycle/Recherche/Microbiome/Amplicons")
+
+path <- "~/UL/3eme_cycle/Recherche/Microbiome/Amplicons/Donnes_projet/16S/Interparcelle/" 
+list.files(path)
+
+#######DADA2
+
+# Sort ensures forward/reverse reads are in same order
+# Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq 
+# and SAMPLENAME_R2_001.fastq
+fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
+
+# Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
+sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+
+
+## A look at the quality of forward reads
+plotQualityProfile(fnFs[1:2])
+plotQualityProfile(fnFs[3:4])
+plotQualityProfile(fnFs[5:6])
+## Almost identical quality all the way except for negative controls
+## Up to 270-280 cycles
+plotQualityProfile(fnFs[29:30])
+## Warning message from ggplot2 does not seem to affect the figure
+## Most likely a version issue... 
+
+## Same look for the reverse reads
+plotQualityProfile(fnRs[1:2])
+plotQualityProfile(fnRs[3:4])
+plotQualityProfile(fnRs[5:6])
+## Almost identical quality all the way except for negative controls
+## Up to 230-250 cycles
+plotQualityProfile(fnRs[29:30])
+
+## Trimming to conserve only cycles with reads quality score >30
+## Forward : need to trim cycles > 280
+## Reverse : need to trim cycles > 240
+
+# Place filtered files in filtered sub-directory
+filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
+names(filtFs) <- sample.names
+names(filtRs) <- sample.names
+
+
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(280,240),
+                     maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+                     compress=TRUE, multithread=FALSE, trimLeft = c(10,10)) 
+# On Windows set multithread=FALSE
+
+out
+
+## After filtering, the typical amplicon bioinformatics workflow clusters 
+## sequencing reads into operational taxonomic units (OTUs): groups of sequencing 
+## reads that differ by less than a fixed dissimilarity threshhold. 
+## Here we instead use the high-resolution DADA2 method to to infer amplicon 
+## sequence variants (ASVs) exactly, without imposing any arbitrary threshhold, 
+## and thereby resolving variants that differ by as little as one nucleotide 
+## (Benjamin J Callahan et al. 2016).
+
+## Parameter learning is computationally intensive, as it requires multiple 
+## iterations of the sequence inference algorithm, and therefore it is 
+## often useful to estimate the error rates from a (sufficiently large) 
+## subset of the data.
+
+## Parameter learning : estimating the error rate on filtered reads
+errF <- learnErrors(filtFs, multithread=FALSE, verbose=TRUE)
+## on Mac multithead=TRUE
+plotErrors(errF, nominalQ=TRUE)
+
+errR <- learnErrors(filtRs, multithread=FALSE, verbose=TRUE)
+## on Mac multithead=TRUE
+plotErrors(errR, nominalQ=TRUE)
+
+
+dadaFs <- dada(filtFs, err=errF, multithread=TRUE, pool="pseudo")
+dadaRs <- dada(filtRs, err=errR, multithread=TRUE, pool="pseudo")
+## here multithread is TRUE
+## see the number of sequence variants found for each single sample
+dadaFs[[1]]
+dadaRs[[1]]
+
+## We now merge together the inferred forward and reverse sequences, 
+## removing paired sequences that do not perfectly overlap as a final control 
+## against residual errors.
+mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+head(mergers[[1]])
+
+## construct sequence table
+seqtab <- makeSequenceTable(mergers)
+dim(seqtab)
+
+# Inspect distribution of sequence lengths
+table(nchar(getSequences(seqtab)))
+
+## remove sequences that did not correctly merged (<400 bp)
+seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% seq(400,450)]
+table(nchar(getSequences(seqtab2)))
+
+## remove chimeras 
+seqtab.nochim <- removeBimeraDenovo(seqtab2, method="consensus", 
+                                    multithread=TRUE, verbose=TRUE)
+dim(seqtab.nochim)
+
+## determine chimera frequency
+sum(seqtab.nochim)/sum(seqtab2)
+
+## Last check
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), 
+               sapply(mergers, getN), rowSums(seqtab.nochim))
+
+# If processing a single sample, remove the sapply calls
+# e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
+colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", 
+                     "merged", "nonchim")
+rownames(track) <- sample.names
+head(track)
+track
+
+#########ASSIGN TAXONOMY
+# New way : fonction IdTaxa
+# The paper introducing the IDTAXA algorithm reports classification 
+# performance that is better than the long-time standard set by the 
+# naive Bayesian classifier
+# https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-018-0521-5
+
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+# BiocManager::install("DECIPHER")
+
+# Create a DNAStringSet from the ASVs
+dna <- DNAStringSet(getSequences(seqtab.nochim))
+# CHANGE TO THE PATH OF YOUR TRAINING SET
+load("~/UL/3eme_cycle/Recherche/Microbiome/Amplicons/Donnes_projet/Databases/SILVA_SSU_r138_2019.RData") 
+# use all processors
+ids <- IdTaxa(dna, trainingSet, strand="top", processors=NULL, verbose=TRUE)
+# ranks of interest
+ranks <- c("domain", "phylum", "class", "order", "family", "genus", "species") 
+# Convert the output object of class "Taxa" to a matrix analogous 
+# to the output from assignTaxonomy
+taxid <- t(sapply(ids, function(x) {
+  m <- match(ranks, x$rank)
+  taxa <- x$taxon[m]
+  taxa[startsWith(taxa, "unclassified_")] <- NA
+  taxa
+}))
+colnames(taxid) <- ranks; rownames(taxid) <- getSequences(seqtab.nochim)
+taxa <- taxid
+
+# Let's inspect the taxonomic assignments:
+taxa.print <- taxa # Removing sequence rownames for display only
+rownames(taxa.print) <- NULL
+head(taxa.print, 10)
+
+
+########PHYLOSEQ
+
+# library(phyloseq); packageVersion("phyloseq")
+# library(Biostrings); packageVersion("Biostrings")
+# library(ggplot2); packageVersion("ggplot2")
+
+theme_set(theme_bw())
+
+#Creation du df avec les donnees des echantillons
+samples.out<- rownames(seqtab.nochim)
+samples.out
+
+samples.out <- rownames(seqtab.nochim)
+echantillon <- sapply(strsplit(samples.out, "_"), `[`, 1)
+secteur <- substr(echantillon,1,3)
+traitement <- substr(echantillon,4,5)
+peuplement <- substr(echantillon,1,5)
+parcelle <- substr(echantillon,6,6)
+samdf <- data.frame(echantillon=echantillon, secteur=secteur, 
+                    traitement=traitement, peuplement = peuplement,
+                    parcelle=parcelle)
+rownames(samdf) <- samples.out
+
+ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
+               sample_data(samdf), 
+               tax_table(taxa))
+
+# Have a look on the data structure
+ps
+head(sample_data(ps), 10)
+
+
+# Use short name for ASVs rather than the full DNA sequence
+dna <- Biostrings::DNAStringSet(taxa_names(ps))
+names(dna) <- taxa_names(ps)
+ps <- merge_phyloseq(ps, dna)
+taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
+
+# The following ensures that features with ambiguous phylum annotation  
+# are also removed. Also, chloroplast and mitochondria are removed
+ps <- subset_taxa(ps, !is.na(phylum) & !order %in% c("Chloroplast") 
+                  & !family %in% c("Mitochondria"))
+ps
+
+## Create table, number of features for each phyla
+table(tax_table(ps)[, "phylum"], exclude = NULL)
+
+## filter out phylum with less than 10 OTUs
+ps <- subset_taxa(ps, !phylum %in% c("Abditibacteriota","Cercozoa",
+                                     "Dependentiae", "Crenarchaeota",
+                                     "Firmicutes", "Phragmoplastophyta",
+                                     "RCP2-54", "Mucoromycota"))
+ps
+table(tax_table(ps)[, "phylum"], exclude = NULL)
+
+
+###### DECONTAMINATION
+
+# library(devtools)
+# library(phyloseq); packageVersion("phyloseq")
+# library(decontam); packageVersion("decontam")
+# ?isContaminant #Pour avoir des details
+
+# Ajouter a ps une variable pour distinguer les echantillons negatifs 
+# (Control sample) des vrais echantillons (True sample)
+sample_data(ps)
+Sample_control <- c("True sample", "True sample", "True sample", "True sample", 
+                    "True sample", "True sample","True sample", "True sample", 
+                    "True sample", "True sample", "True sample", "True sample",
+                    "True sample", "True sample", "True sample", "True sample", 
+                    "True sample", "True sample", "True sample", "True sample", 
+                    "True sample", "True sample", "True sample", "True sample",
+                    "True sample", "True sample", "True sample", "True sample",
+                    "True sample", "True sample", "Control sample", 
+                    "Control sample")
+
+Sample_or_control <- factor(Sample_control)
+sample_data(ps)$Sample_or_control <- Sample_or_control
+sample_data(ps) #Verification
+
+# Inspect library sizes
+
+df <- as.data.frame(sample_data(ps)) # Put sample_data into a ggplot-friendly data.frame
+df$LibrarySize <- sample_sums(ps)
+df <- df[order(df$LibrarySize),]
+df$Index <- seq(nrow(df))
+ggplot(data=df, aes(x=Index, y=LibrarySize, color=Sample_or_control)) + 
+  geom_point()
+
+# Ajouter la concentration ADN (ng/ul) deuxieme amplicon 
+sample_data(ps)
+DNA_Concentration <- c(14.6, 19.3, 16.9, 18.6, 15.5, 21.5, 17.8, 18.0, 15.9, 
+                       22.2, 17.6, 28.8, 16.8, 19.6, 24.5, 19.7, 16.8, 17.8, 
+                       18.5, 18.7, 17.1, 16.3, 13.3, 16.5, 17.9, 15.9, 16.4, 
+                       16.8, 16.5, 15.0, 5.2, 8.9)
+
+# Specifier quel est le champ incluant la concentration ADN
+sample_data(ps)$DNA_Concentration <- DNA_Concentration
+sample_data(ps) #Verification
+
+#Specifier quels sont les controles negatifs
+sample_data(ps)$is.neg <- sample_data(ps)$Sample_or_control == "Control Sample"
+
+## FREQUENCE AND PREVALENCE - Identification des contaminants
+# Method = "either" permet de faire les deux methodes simultanement
+set.seed(420)
+contam <- isContaminant(ps, method="either", neg="is.neg",
+                        threshold=0.25, conc = "DNA_Concentration")
+
+# Voir allure du resultat
+head(contam, 100)
+# Combien de contaminants
+table(contam$contaminant)
+# Voir les contaminants
+which(contam$contaminant)
+
+# There are four contaminants identified by either method with 0.25 threshold
+
+## Visualisation des contaminants
+# Ne permet pas de retirer les contaminants!
+# Frequence
+plot_frequency(ps, taxa_names(ps)[c(1:9)], conc="DNA_Concentration") + 
+  xlab("DNA Concentration (Nanodrop)")
+
+set.seed(100) #Inspection des AVSs "contaminants"
+plot_frequency(ps, taxa_names(ps)[sample(which(contam$contaminant),4)], 
+               conc="DNA_Concentration") +
+  xlab("DNA Concentration (Nanodrop)")
+
+# Prevalence
+# Make phyloseq object of presence-absence in negative controls and true samples
+ps.pa <- transform_sample_counts(ps, function(abund) 1*(abund>0))
+ps.pa.neg <- prune_samples(sample_data(ps.pa)$Sample_or_control == "Control sample", ps.pa)
+ps.pa.pos <- prune_samples(sample_data(ps.pa)$Sample_or_control == "True sample", ps.pa)
+# Make data.frame of prevalence in positive and negative samples
+df.pa <- data.frame(pa.pos=taxa_sums(ps.pa.pos), pa.neg=taxa_sums(ps.pa.neg),
+                    contaminant=contam$contaminant)
+ggplot(data=df.pa, aes(x=pa.neg, y=pa.pos, color=contaminant)) + geom_point() +
+  xlab("Prevalence (Negative Controls)") + ylab("Prevalence (True samples)")
+
+
+# RETIRER LES CONTAMINANTS (NOUVEL OBJET PHYLOSEQ)
+ps
+ps2 <- prune_taxa(!contam$contaminant, ps)
+ps2
+
+# Exporter la table ASV dans un fichier Excel 
+# write.csv2(tax_table(ps2), "~/UL/3eme_cycle/Recherche/Microbiome/Amplicons/",
+#            row.names = TRUE)
+
+# Check the number of reads per sample
+sample_sums(ps2)
+hist(sample_sums(ps2), main="Histogram: Read Counts", 
+     xlab="Total Reads", border="black", col="darkgreen", las=1, breaks=15)
+
+# Check the number of reads per taxa
+head(taxa_sums(ps2), 64)
+
+## Create table, number of features for each phyla
+table(tax_table(ps2)[, "phylum"], exclude = NULL)
+table(tax_table(ps2)[, "order"], exclude = NULL)
+
+
+# Creation dun subset de ps2 SANS negatif (NEGNA1:6)
+ps3 <- subset_samples(ps2, echantillon != "NEGNA1-10mai" 
+                      & echantillon != "NEGNA2-11mai")
+ps3
+ps2
+
+###### PREVALENCE OF TAXA IN SAMPLES
+
+# Compute prevalence of each feature, store as data.frame
+prevdf = apply(X = otu_table(ps3),
+               MARGIN = ifelse(taxa_are_rows(ps3), 
+                               yes = 1, no = 2),
+               FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevdf = data.frame(Prevalence = prevdf,
+                    TotalAbundance = taxa_sums(ps3),
+                    tax_table(ps3))
+plyr::ddply(prevdf, "phylum", function(df1){cbind(mean(df1$Prevalence),
+                                                  sum(df1$Prevalence))})
+
+# Subset to the remaining phyla
+prevdf1 = subset(prevdf, phylum %in% get_taxa_unique(ps3, "phylum"))
+ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps3),
+                    color=phylum)) +
+  # Include a guess for parameter
+  geom_hline(yintercept = 0.05, alpha = 0.5, linetype = 2) +  
+  geom_point(size = 2, alpha = 0.7) +
+  scale_x_log10() +  xlab("Total Reads") + 
+  ylab("Prevalence [Frac. Samples]") +
+  facet_wrap(~phylum) + theme(legend.position="none") # All bacteria
+
+
+## filter out phylum with prevalence = 1.00000 
+# Define prevalence threshold to remove OTU present in only one sample
+prevalenceThreshold <- 0.0335 * nsamples(ps3)
+prevalenceThreshold
+# Execute prevalence filter, using `prune_taxa()` function
+keepTaxa <- rownames(prevdf1)[(prevdf1$Prevalence >= prevalenceThreshold)]
+ps4 <- prune_taxa(keepTaxa, ps3)
+ps4 # Only bacteria in more than one sample
+ps3 # All bacteria
+
+table(tax_table(ps4)[, "phylum"], exclude = NULL) # Only bacteria in more than one sample
+table(tax_table(ps3)[, "phylum"], exclude = NULL) # All bacteria
+
+
+# Compute prevalence of each feature ONLY BACTERIA IN MORE THAN ONE SAMPLE
+prevdf = apply(X = otu_table(ps4),
+               MARGIN = ifelse(taxa_are_rows(ps4), 
+                               yes = 1, no = 2),
+               FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevdf = data.frame(Prevalence = prevdf,
+                    TotalAbundance = taxa_sums(ps4),
+                    tax_table(ps4))
+plyr::ddply(prevdf, "phylum", function(df1){cbind(mean(df1$Prevalence),
+                                                  sum(df1$Prevalence))})
+
+# Subset to the remaining phyla
+prevdf1 = subset(prevdf, phylum %in% get_taxa_unique(ps4, "phylum"))
+ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps4),
+                    color=phylum)) +
+  # Include a guess for parameter
+  geom_hline(yintercept = 0.05, alpha = 0.5, linetype = 2) +  
+  geom_point(size = 2, alpha = 0.7) +
+  scale_x_log10() +  xlab("Total Reads") + 
+  ylab("Prevalence [Frac. Samples]") +
+  facet_wrap(~phylum) + theme(legend.position="none")
+# ONLY BACTERIA SEQUENCED IN MORE THAN ONE SAMPLE
+
+# Remove taxa not seen at least 5 times two samples.
+# This protects against an OTU with small mean & trivially large 
+# Coefficient of Variation
+# It  was applied to the OTU counts prior to creating the figures 
+# in the main phyloseq manuscript.
+
+ps5 <- phyloseq::filter_taxa(ps3, function(x) sum(x > 4) > (0.06*length(x)), TRUE)
+ps5
+
+# Compute prevalence ONLY BACTERIA SEQUENCED AT LEAST 5 TIMES IN 2 SAMPLES
+prevdf = apply(X = otu_table(ps5),
+               MARGIN = ifelse(taxa_are_rows(ps5), 
+                               yes = 1, no = 2),
+               FUN = function(x){sum(x > 0)})
+# Add taxonomy and total read counts to this data.frame
+prevdf = data.frame(Prevalence = prevdf,
+                    TotalAbundance = taxa_sums(ps5),
+                    tax_table(ps5))
+plyr::ddply(prevdf, "phylum", function(df1){cbind(mean(df1$Prevalence),
+                                                  sum(df1$Prevalence))})
+
+# Subset to the remaining phyla
+prevdf1 = subset(prevdf, phylum %in% get_taxa_unique(ps5, "phylum"))
+ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps5),
+                    color=phylum)) +
+  # Include a guess for parameter
+  geom_hline(yintercept = 0.05, alpha = 0.5, linetype = 2) +  
+  geom_point(size = 2, alpha = 0.7) +
+  scale_x_log10() +  xlab("Total Reads") + 
+  ylab("Prevalence [Frac. Samples]") +
+  facet_wrap(~phylum) + theme(legend.position="none")
+# ONLY BACTERIA SEQUENCED AT LEAST 5 TIMES IN TWO SAMPLES
+
+
+# you can also subset_taxa to keep only taxonomic groups of interest
+# GP.chl = subset_taxa(GlobalPatterns, Phylum=="Chlamydiae")
+
+
+######### HEAT TREE
+
+library(metacoder); packageVersion("metacoder")
+library("dplyr"); packageVersion("dplyr")
+
+## convertion from phyloseq to metacoder format
+metacode <- parse_phyloseq(ps3) # All bacteria
+metacode2 <- parse_phyloseq(ps4) # Only bacteria present in at least 2 samples
+metacode3 <- parse_phyloseq(ps5)
+
+# subset to the class rank
+set.seed(420) # Each number will produce a slightly different result for some layouts
+metacode %>%
+  filter_taxa(grepl(pattern = "^[a-zA-Z]+$", taxon_names)) %>% # remove "odd" taxa
+  filter_taxa(taxon_ranks == "order", supertaxa = TRUE) %>% 
+  # subset to the order rank
+  heat_tree(node_label = taxon_names,
+            node_size = n_obs,
+            node_color = n_obs,
+            edge_label = n_obs,
+            layout = "da")
+#            output_file = "HT_construction.pdf")
+# Error can be ignored, it means there are no order assigned to some ASVs
+
+metacode2 %>%
+  filter_taxa(grepl(pattern = "^[a-zA-Z]+$", taxon_names)) %>% # remove "odd" taxa
+  filter_taxa(taxon_ranks == "order", supertaxa = TRUE) %>% 
+  # subset to the order rank
+  heat_tree(node_label = taxon_names,
+            node_size = n_obs,
+            node_color = n_obs,
+            edge_label = n_obs,
+            layout = "da")
+#            output_file = "HT_construction.pdf")
+# Error can be ignored, it means there are no order assigned to some ASVs
+
+
+
+# calculate the number of reads in each taxon for all plots combined
+metacode3$data$tax_abund <- calc_taxon_abund(metacode3, "otu_table",
+                                             groups = 1, out_names = "reads")
+print(metacode3$data$tax_abund)
+
+# Save high resolution image
+# tiff("Heat_tree_bacteria.tiff", units="in", width=5, height=4, res=600)
+
+# Construct the heat tree to be published
+set.seed(425)
+metacode3 %>%
+  filter_taxa(grepl(pattern = "^[a-zA-Z]+$", taxon_names)) %>% # remove "odd" taxa
+  filter_taxa(taxon_ranks == "order", supertaxa = TRUE) %>% 
+  # subset to the order rank
+  heat_tree(node_label = gsub(pattern = "\\[|\\]", replacement = "", taxon_names),
+            node_size = n_obs,
+            node_color = n_obs,
+            node_color_axis_label = "Number of ASVs",
+            node_color_digits = 2,
+            node_color_range = c("gray75","darkkhaki","olivedrab","chartreuse4"),
+            node_size_range = c(0.02, 0.06),
+            node_label_size_range = c(0.014, 0.041),
+            edge_size_range = c(0.01, 0.02),
+            edge_label = n_obs,
+            edge_label_size_range = c(0.011, 0.024),
+            edge_color = reads,
+            edge_color_axis_label = "Sum of reads",
+            layout = "davidson-harel", initial_layout = "reingold-tilford",
+            margin_size = c(0.01,0.02,0,0.02))
+
+# Export high resolution TiFF
+# dev.off()
+
+# output_file = "metacoder3_plot.pdf",
+# node_color = n_supertaxa,
+# title = "A",
+
+
+
+######### NORMALISATION DES DONNEES AVEC DESEQ2
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+# BiocManager::install("DESeq2", force = TRUE)
+
+library("DESeq2"); packageVersion("DESeq2")
+
+# The following two lines actually do all the complicated DESeq2 work. 
+# The function phyloseq_to_deseq2 converts your phyloseq-format microbiome data 
+# into a DESeqDataSet with dispersions estimated, using the experimental 
+# design formula, also shown (the ~DIAGNOSIS term). The DESeq function does 
+# the rest of the testing, in this case with default testing framework, but 
+# you can actually use alternatives.
+head(sample_data(ps5)$peuplement, 30)
+
+# BACTERIA PRESENT IN AT LEAST TWO SAMPLES
+# Stabilisation en fonction des peuplements
+
+ps6 <- phyloseq_to_deseq2(ps5, ~peuplement)
+# New Part Not Shown in Original Vignette: DESeq2 Variance Stabilization
+# You must step through the size factor and dispersion estimates prior 
+# to calling the getVarianceStabilizedData function.
+ps6 <- estimateSizeFactors(ps6)
+ps6 <- estimateDispersions(ps6)
+ps7 <- DESeq2::getVarianceStabilizedData(ps6)
+
+dim(ps7)
+ps5
+# As you can see, the dimensions of the variance stabilized count table, 
+# ps6, are the same as the OTU table (ps3). A one-line construction and replacement 
+# call can replace the original counts with variance stabilized counts.
+
+# Save the untransformed data as a separate variable so you can go back to it
+ps5.1 <- ps5
+
+# Formating the DESeq object back to be used in standard phyloseq extensions
+# Replace the OTU table in ps3 by the variance stabilized counts of ps6
+otu_table(ps5) <- otu_table(ps7, taxa_are_rows = TRUE)
+
+head(otu_table(ps5),10)
+# Abondance relative de chaque ASV dans chaque echantillon !!!
+# This modified ps4 variable now has the results of DESeq2 variance-stabilization 
+# of counts instead of the original counts.
+
+# If you want to manually check the output of DESeq2 in Excel
+# write.csv2(tax_table(ps5.1), file = "tax_table_ps5.csv")
+# write.csv2(otu_table(ps5.1), file = "otu_table_ps5.csv")
+# write.csv2(ps7, file = "DESeq2_bacteria.csv")
+
+# In the case of bacteria, there are no negative values when raw count = 0
+# Why does it give negative values when using DESeq2 on my ITS1 data ? 
+
+# Check the number of reads per sample
+sample_sums(ps5)
+hist(sample_sums(ps5), main="Histogram: DESeq2 Variance-stabilization", 
+     xlab="Variance-stabilization of reads", border="black", col="darkgreen", 
+     las=1, breaks=5)
+
+# Make sure that no ASV was lost in the variance-stabilization process
+table(tax_table(ps5.1)[, "phylum"], exclude = NULL)
+table(tax_table(ps5)[, "phylum"], exclude = NULL)
+# Exact same number of ASV per phylum after normalisation of data
+
+# Now you can use object ps5 for downstream analysis 
+
+# Export it to csv
+# export <- tax_table(ps5)
+# write.csv(export,file="taxa_table_all_bacteria_06fev2022.csv")
+
+
+
+######### REPRESENTATION GRAPHIQUE
+
+#### Diversite Alpha
+par(cex = 8)
+
+
+plot_richness(ps5.1,x="traitement", measures=c("Shannon"),
+              color="traitement", shape="secteur",
+              scales = "fixed")
+# It has now singletons because these are relative abundances
+
+Shannon <- diversity(otu_table(ps5.1), index = "shannon")
+Shannon
+
+######### CONSTRUCTION DE LA MATRICE DE DISTANCE WEIGHTED UNIFRAC
+
+library("doParallel"); packageVersion("doParallel")
+library("foreach"); packageVersion("foreach")
+
+# Set random number generator (RNG) seed, for perfect reproducibility.
+set.seed(420)
+
+# Define a default theme for ggplot graphics.
+theme_set(theme_bw())
+fontsize = 18L
+theme_update(axis.title.x = element_text(size=fontsize))
+theme_update(axis.title.y = element_text(size=fontsize))
+theme_update(plot.title = element_text(size=fontsize+2))
+
+# In phyloseq, all variants of the UniFrac distance can be called with 
+# the same generic function, UniFrac. 
+
+# Need to create a phylogenetic tree 
+library("ape"); packageVersion("ape")
+tree <- rtree(ntaxa(ps5), rooted=TRUE, tip.label=taxa_names(ps5))
+plot_tree(tree)
+
+
+ps5 <- merge_phyloseq(ps5, tree)
+ps5
+
+UF <- UniFrac(ps5, weighted=TRUE, normalized=FALSE,
+              parallel=FALSE)
+# weighted = TRUE because we consider relative abundance, not presence/absence
+# normalized = FALSE because our data is already normalized through DESeq2
+
+UF
+
+
+
+# PERMANOVA
+
+# make a data frame from the sample_data
+ps5.1 <- data.frame(sample_data(ps5))
+
+set.seed(420)
+permanova <- adonis(UF ~ traitement + secteur + traitement:secteur, 
+                    ps5.1, permutations = 10000)
+permanova
+
+# This output tells us that our adonis test is significant so we can reject 
+# the null hypothesis that our three sites have the same centroid.
+
+# Homogeneity of dispersion test
+beta <- betadisper(UF, ps5.1$traitement)
+permutest(beta)
+
+# Additionally, our betadisper results are not significant, meaning we 
+# cannot reject the null hypothesis that our groups have the same 
+# dispersions. This means we can be more confident that our adonis 
+# result is a real result, and not due to differences in group dispersions
+
+
+# ANALYSE DE RENDONDANCE DONNEES PHYSICOCHIMIQUES
+
+# Importer les donnees environnementales dans un objet
+env <- read.csv2("Donnes_projet/Propriete_physicochimiques_RDA_colinearite.csv",
+                 header = TRUE)
+env
+
+# Renommer les colonnes sur le sens du monde
+colnames(env) <- c("Humidity (%)", "pH", "Phosphorus (ppm)", 
+                   "Total N (%)", "Total C (%)",
+                   "Total S (%)", "Organic C (%)")
+
+# Verification de la colineratite des covariables physicochimiques
+# correlation de Pearson (valeurs absolues)
+heatmap(abs(cor(env)), 
+        col = rev(heat.colors(6)), 
+        Colv = NA, Rowv = NA, 
+        mar =c(8,4))
+legend("topleft", 
+       title = "R de Pearson",
+       legend =  round(seq(0,1, length.out = 6),1),
+       y.intersp = 0.8, bty = "n",
+       fill = rev(heat.colors(6)))
+# TOTAL CARBON est colineaire avec ORGANIC CARBONE
+
+
+# RERUN en excluant la variable TOTAL CARBONE
+env2 <- read.csv2("Donnes_projet/Propriete_physicochimiques_RDA_colinearite_1.csv",
+                  header = TRUE)
+colnames(env2) <- c("Humidity (%)", "pH", "Phosphorus (ppm)", 
+                    "Total N (%)",
+                    "Total S (%)", "Organic C (%)")
+
+heatmap(abs(cor(env2)), 
+        col = rev(heat.colors(6)), 
+        Colv = NA, Rowv = NA, 
+        mar =c(8,4))
+legend("topleft", 
+       title = "R de Pearson",
+       legend =  round(seq(0,1, length.out = 6),1),
+       y.intersp = 0.8, bty = "n",
+       fill = rev(heat.colors(6)))
+# SOUFRE colineaire avec AZOTE
+
+# RERUN en excluant la variable SOUFRE car differe entre
+# les deux sites alors qu'azote est constant a travers peuplements
+env3 <- read.csv2("Donnes_projet/Propriete_physicochimiques_RDA_colinearite_2.csv",
+                  header = TRUE)
+
+colnames(env3) <- c("Humidity (%)", "pH", "Phosphorus (ppm)",
+                    "Total N (%)", "Organic C (%)")
+
+heatmap(abs(cor(env3)), 
+        col = rev(heat.colors(6)), 
+        Colv = NA, Rowv = NA, 
+        mar =c(12,8))
+legend("topleft", 
+       title = "R de Pearson",
+       legend =  round(seq(0,1, length.out = 6),1),
+       y.intersp = 0.8, bty = "n",
+       fill = rev(heat.colors(6)))
+# MAX colinearity is correlation 0.4 PEARSON = TOLERABLE
+
+
+# RERUN en INCLUANT RATIO CN
+# les deux sites alors qu'azote est constant a travers peuplements
+env4 <- read.csv2("Donnes_projet/Propriete_physicochimiques_RDA_colinearite_3.csv",
+                  header = TRUE)
+
+colnames(env4) <- c("Humidity (%)", "pH", "Phosphorus (ppm)",
+                    "Total N (%)", "Organic C (%)", "CN_ratio")
+
+heatmap(abs(cor(env4)), 
+        col = rev(heat.colors(6)), 
+        Colv = NA, Rowv = NA, 
+        mar =c(12,8))
+legend("topleft", 
+       title = "R de Pearson",
+       legend =  round(seq(0,1, length.out = 6),1),
+       y.intersp = 0.8, bty = "n",
+       fill = rev(heat.colors(6)))
+# MAX colinearity is correlation 0.4 PEARSON = TOLERABLE
+
+
+# PAS DE COLINEARITE ENTRE LES COVARIABLES 
+# ON EST PRET POUR RUN UNE ANALYSE DE REDONDANCE SUR CES DONNEES
+
+# Importer la matrice de covariables environnementales finale
+# En incluant le nom des parcelles
+envF <- read.csv2("Donnes_projet/Propriete_physicochimiques_RDA_final_16S.csv",
+                  header = TRUE)
+
+colnames(envF) <- c("plot", "humid", "pH",
+                    "P", "N", "organic_C", "CN_ratio")
+envF
+# MAX colinearity is correlation 0.4 PEARSON = TOLERABLE
+# LES COVARIABLES ENVIRONNEMENTALES DOIVENT ETRE INCLUS DANS OBJET
+# PHYLOSEQ POUR POUVOIR LES INSERER DANS ORDINATION DE TYPE RDA
+
+# Ajouter le pourcentage humidite
+sample_data(ps5)
+humid <- envF$humid
+# Visualiser la distribution et normalite
+hist(humid, col = "darkgreen", main = "", 
+     xlab = "Pourcentage d'humidit?")
+shapiro.test(humid)
+# Specifier quel est le champ incluant le pourcentage humidite
+sample_data(ps5)$humid <- humid
+sample_data(ps5) #Verification
+
+# Ajouter le pH
+pH <- envF$pH
+# Visualiser la distribution et normalite
+hist(pH, col = "darkgreen", main = "", xlab = "pH")
+shapiro.test(pH)
+# Specifier quel est le champ incluant le pH
+sample_data(ps5)$pH <- pH
+
+
+# Ajouter la concentration en phospore (bray-II en ppm)
+P <- envF$P
+# Visualiser la distribution et normalite
+hist(P, col = "darkgreen", main = "", xlab = "Phosphore bray-2 en ppm")
+shapiro.test(P)
+# Specifier quel est le champ incluant la concentration en phosphore (ppm)
+sample_data(ps5)$P <- P
+
+
+# Ajouter la concentration en azote (pourcentage)
+N <- envF$N
+# Visualiser la distribution et normalite
+hist(N, col = "darkgreen", main = "", xlab = "Pourcentage de azote")
+shapiro.test(N)
+# Specifier quel est le champ incluant la concentration en azote
+sample_data(ps5)$N <- N
+
+# Ajouter la concentration en carbone organic (%)
+organic_C <- envF$organic_C
+# Visualiser la distribution et normalite
+hist(organic_C, col = "darkgreen", main = "", 
+     xlab = "Carbone organique (%)")
+shapiro.test(organic_C)
+# Specifier quel est le champ incluant la concentration en phosphore (ppm)
+sample_data(ps5)$organic_C <- organic_C
+# Deux donnees extremes retirees dans les 2-way ANOVAs...
+# Conservee ici
+
+# Ajouter le ratio CN
+CN <- envF$CN_ratio
+# Visualiser la distribution et normalite
+hist(CN, col = "darkgreen", main = "", xlab = "Ratio_CN")
+shapiro.test(CN)
+# Specifier quel est le champ incluant la concentration en azote
+sample_data(ps5)$CN <- CN
+
+sample_data(ps5) #Verification
+
+
+# If your response data is in the form of a distance or (dis)similarity
+# matrix, consider distance-based RDA.
+
+# For reproducibility
+set.seed(420)
+
+# Effectuer distance-based redundancy analysis (CAPSCALE)
+dbRDA <- ordinate(ps5, method = "CAP", distance = UF,
+                 formula = ~ humid + pH + P + N + organic_C + CN)
+dbRDA
+
+# Note that the first two unconstrained axis (MDS1 et MDS2) represent 
+# [(0,6868/3,6525)*100] + [(0,3411/3,6525)*100] = 28,1% of the total variance; 
+# which is more than the variance explained by our explanatory variables 
+# together (proportion of constrained axes = 13,81%);
+# This means that the dataset may be structured by some 
+# strong environmental variable(s) different from our covariables
+
+# Each CAP axis has an eigenvalue associated with it. 
+# As the total variance of the solution is equivalent to the sum 
+# of all eigenvalues (constrained an unconstrained), 
+# the proportion of variance explained by each axis is simply 
+# the quotient of a given eigenvalue with the total variance of the solution.
+
+
+#The relationship between the variation represented by individual 
+# (constrained and unconstrained) ordination axes can be displayed 
+# using the barplot of percentage variance explained by individual axes 
+# (ie their eigenvalue divided by total inertia):
+constrained_eig <- dbRDA$CCA$eig/dbRDA$tot.chi*100
+unconstrained_eig <- dbRDA$CA$eig/dbRDA$tot.chi*100
+expl_var <- c(constrained_eig, unconstrained_eig)
+barplot (expl_var[1:20], col = c(rep ('red', length (constrained_eig)), 
+                                 rep ('black', length (unconstrained_eig))),
+         las = 2, ylab = '% variation', ylim = c(0,20))
+
+# This indicates that after accounting for treatment, pH, N, P and humidity 
+# (the five variables used as explanatory), there is still quite a 
+# considerable variation in species composition left, 
+# possibly calling for interpretation.
+
+
+# Representation graphique
+# CAP plot
+cap_plot <- plot_ordination(physeq = ps5, ordination = dbRDA, 
+                            color = "traitement", axes = c(1,2)) + 
+  aes(shape = traitement) + 
+  geom_point(aes(colour = traitement), alpha = 1, size = 4) + 
+  geom_point(colour = "black", size = 1) + 
+  scale_color_manual(values = c("firebrick", "darkgreen", "mediumblue"))
+cap_plot
+
+# Now add the environmental variables as arrows
+arrowmat <- vegan::scores(dbRDA, display = "bp")
+
+# Add labels, make a data.frame
+arrowdf <- data.frame(labels = rownames(arrowmat), arrowmat)
+
+# Define the arrow aesthetic mapping
+arrow_map <- aes(xend = CAP1, yend = CAP2, x = 0, y = 0, 
+                 shape = NULL, color = NULL, label = labels)
+
+label_map <- aes(x = 1.3 * CAP1, y = 1.3 * CAP2, shape = NULL, 
+                 color = NULL, label = labels)
+
+arrowhead = arrow(length = unit(0.04, "npc"))
+
+# Make a new graphic
+cap_plot + 
+  geom_segment(mapping = arrow_map, size = 1, 
+               data = arrowdf, color = "black", arrow = arrowhead) + 
+  geom_text(mapping = label_map, size = 5, data = arrowdf, 
+            show.legend = FALSE)
+
+
+# MDS plot
+mds_plot <- plot_ordination(physeq = ps5, ordination = dbRDA, 
+                            color = "traitement", axes = c(6,7)) + 
+  aes(shape = traitement) + 
+  geom_point(aes(colour = traitement), alpha = 1, size = 4) + 
+  geom_point(colour = "black", size = 1) + 
+  scale_color_manual(values = c("firebrick", "darkgreen", "mediumblue"))
+mds_plot
+# No more patterns of agglomeration when points are ordinated 
+# based on the two firsts unconstrained axes (MDS)
+
+
+# Do a permutational ANOVA on constrained axes used in ordination
+# Verifier la significativite du modele
+anova.cca(dbRDA)
+
+# Verifier la significativite des axes individuels dans le modeles
+anova.cca(dbRDA, by = "axis")
+
+# Le modele n'est pas significatif
+# Les parametres physicochimiques mesures n'ont pas d'effet significatif
+# sur la composition des communautes de bacteries du sol
