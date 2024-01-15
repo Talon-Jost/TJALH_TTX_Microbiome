@@ -1,0 +1,173 @@
+#TJALH_TTX_Newt_Project microbiome analysis
+#Started 16-Aug-23
+#I have not gotten this to work in anything other than VSCode. Will NOT work in RStudio or Posit Cloud. I can't figure out how to set up the virtual environment correctly for PycharmIDE
+
+#_____________#Setup#_____________________#
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+
+BiocManager::install(c("DECIPHER","DESeq2", "philr", "phyloseq"))
+
+BiocManager::install("preprocessCore")
+BiocManager::install("GO.db")
+BiocManager::install("impute")
+
+install.packages(c("adespatial","devtools","ggdendro","gridExtra","knitr","MicrobeR","pander","plotly","png","tidyverse","vegan"))
+install.packages(c('tidyverse'))
+
+library(devtools)
+
+devtools::install_github("gauravsk/ranacapa")
+devtools::install_github("umerijaz/microbiomeSeq") 
+
+install.packages("remotes")
+
+remotes::install_github("jbisanz/qiime2R")
+remotes::install_github("jbisanz/MicrobeR")
+remotes::install_github("microsud/microbiomeutilities")
+remotes::install_github("https://github.com/emmanuelparadis/ape")
+
+
+#potential linux gnu issues which may need to be fixed/installed
+    # cmake
+    # make
+    # gcc
+    # g++
+    # gfortran
+
+BiocManager::install("Rhtslib")
+BiocManager::install('ShortRead', version = 3.16)
+devtools::install_github('https://github.com/RcppCore/RcppEigen.git')
+remotes::install_github('https://github.com/benjjneb/dada2.git')
+
+
+BiocManager::install_github('http://microbiome.github.com/microbiome')
+BiocManager::install("microbiome")
+
+install.packages(c("ggpubr", "RColorBrewer"))
+
+install.packages('knitr')
+
+if(!requireNamespace('BiocManager', quietly = TRUE))
+  install.packages('BiocManager')
+
+BiocManager::install('tidyverse')
+
+install_github("jbisanz/MicrobeR")
+
+#_________#Libraries#________#
+
+#Depending on your cran and bioc versions you may have to update. if you get thrown an error code through tidyverse and such, you may need OS specific installs
+library(DECIPHER) # This package will help in importing, maintaining, analyzing, manipulating, and exporting a massive amount of sequences.
+
+library(ape) # Analyses of Phylogenetics and Evolution package. Required for tree calculations to be used with phyloseq
+
+library(DESeq2) # This package will help analyze "differential expression" in the microbiota alongside phyloseq
+
+library(ggplot2) # Graphing package used in phyloseq. To edit the default setting of a plot, you need to use functions in this package.
+
+library(phyloseq) # The phyloseq package seeks to address issues with multiple microbiome analysis packages by providing a set of functions that internally manage the organizing, linking, storing, and analyzing of phylogenetic sequencing data. In general, this package is used for UniFrac analyses.
+
+library(plotly) # A package to create interactive web graphics of use in 3D plots
+
+library(vegan) # The vegan package provides tools for descriptive community ecology. It has most basic functions of diversity analysis, community ordination and dissimilarity analysis. In general, this package is used for Bray-Curtis and Jaccard analyses.
+
+library(philr) # This package provides functions for the analysis of compositional data 
+
+library(tidyverse) # This package is designed to make it easy to install and load multiple 'tidyverse' packages in a single step
+
+library(adespatial) # Tools for the multiscale spatial analysis of multivariate data
+
+library(devtools) # Make package development easier by providing R functions that simplify and expedite common tasks
+
+library(qiime2R) # A package for importing qiime artifacts into an R session
+
+library(MicrobeR) # Data visualization
+
+library(microbiome) # Data analysis and visualization
+
+library(microbiomeSeq) # Data analysis and visualization
+
+library("pander") # provide a minimal and easy tool for rendering R objects into Pandoc's markdown
+
+library(ranacapa) # Data analysis 
+
+library(grid) # support data visualization
+
+library(gridExtra)  # support data visualization
+
+library(knitr) # Provides a general-purpose tool for dynamic report generation in R using Literate Programming techniques.
+
+library(png) # Figure download
+
+library("ggdendro") #set of tools for dendrograms and tree plots using 'ggplot2'
+
+library(ggpubr) # publication quality figures, based on ggplot2
+
+library(RColorBrewer) # nice color options
+
+library(microbiomeutilities) # some utility tools 
+
+#Some stats packages
+library(dplyr) # dplyr is a grammar of data manipulation, providing a consistent set of verbs that help you solve the most common data manipulation challenges:
+
+    # mutate() adds new variables that are functions of existing variables
+    # select() picks variables based on their names.
+    # filter() picks cases based on their values.
+    # summarise() reduces multiple values down to a single summary.
+    # arrange() changes the ordering of the rows.
+
+library(MASS)
+library(ggplot2)
+library(lme4) 
+library(nlme)
+library(vegan)
+library(readr)
+library(plotrix)
+library(effects)
+library(dada2)
+
+
+# usefull things:
+# read_qza() - Function for reading artifacts (.qza).
+# qza_to_phyloseq() - Imports multiple artifacts to produce a phyloseq object.
+# read_q2metadata() - Reads qiime2 metadata file (containing q2-types definition line)
+# write_q2manifest() - Writes a read manifest file to import data into qiime2
+# theme_q2r() - A ggplot2 theme for publication-type figures.
+# print_provenance() - A function to display provenance information.
+# is_q2metadata() - A function to check if a file is a qiime2 metadata file.
+# parse_taxonomy() - A function to parse taxonomy strings and return a table where each column is a taxonomic class.
+# parse_ordination() - A function to parse the internal ordination format
+
+
+Sequence_Path <- '/home/tally/Desktop/Illumina_Sequences'
+list.files(Sequence_Path)
+
+#sorting - you can repeat this step and order with R1_002 under a different name if you need to
+sequences_reads <- sort(list.files(Sequence_Path, '_R1_001'))
+sequences_reads
+
+#this next step is basically splicing the path and files together for later recall without having to specify BOTH the file and filepath
+names <- sapply(strsplit(sequences_reads, "_"), '[', 1)
+sequences_reads <- file.path(Sequence_Path, sequences_reads)
+sequences_reads[1:3]
+
+plotQualityProfile(sequences_reads[1:2])
+
+initial_reads <- sort(list.files(Sequence_Path, pattern = '_R1_001.fastq', full.names = TRUE))
+initial_reads
+
+sample.names <- sapply(strsplit(basename(initial_reads), "_20230711"), `[`, 1)
+sample.names
+
+filtRs <- file.path(sequences_reads, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs
+
+filter_trim <- filterAndTrim(initial_reads, filtRs, truncLen=c(250,1),
+              maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+              compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
+head(filter_trim)
+
+seqtab <- makeSequenceTable(sample.names)

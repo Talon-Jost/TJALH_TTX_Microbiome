@@ -1,0 +1,91 @@
+SwabID,Location,ZE.1,ZE.2,ZE.avg.Bd,SiteName,TTX_Hypothesized,TTX_Real,Bd_Presence,Sex,Mass_g,SVL_mm,TL_mm,Predicted whole newt TTX (mg),Notes
+FCSP-01,FSCP,0,0,0,FCSP,High,Low,0,M,21,86.7,194.4,0.089,Pooped in mucosome bath
+FCSP-02,FSCP,0,0,0,FCSP,High,Low,0,M,19,84,194.3,0.117,
+FCSP-03,FSCP,0,0,0,FCSP,High,Low,0,M,14,75.1,168.7,0.061,
+FCSP-04,FSCP,0,0,0,FCSP,High,Low,0,F,16,75.1,152.2,0.198,
+FCSP-05,FSCP,0,0,0,FCSP,High,NA,0,F,10,77.7,169.9,NA,"Red, circular markings on a patch of skin with lack of pigmentation on right forelimb on the ventrum. See photos. Newt was too emaciated to comfortably biopsy."
+FCSP-06,FSCP,0,0,0,FCSP,High,Low,0,M,19,78.3,169.4,0.355,
+FCSP-07,FSCP,0,0,0,FCSP,High,Low,0,M,15,68,158.2,0.136,"Odd, black, circular markings on head. General black spots throughout anterior dorsum. See photos"
+FCSP-08,FSCP,0,0,0,FCSP,High,Low,0,F,15,73.8,153.2,0.097,
+FCSP-09,FSCP,0,0,0,FCSP,High,Low,0,M,15,75,166.1,0.187,
+GRP-01,GRP,0,0,0,GRP,High,High,0,F,14,75.8,173.2,1.656,
+GRP-02,GRP,0,0,0,GRP,High,High,0,M,17,77.8,178.6,6.245,
+GRP-03,GRP,0,0,0,GRP,High,High,0,M,13,75,169.2,2.283,
+GRP-04,GRP,0,0,0,GRP,High,High,0,M,15,81.7,182.9,4.764,
+GRP-05,GRP,954,1330,1140,GRP,High,High,1,M,16,77.3,166.6,4.328,
+GRP-06,GRP,0,0,0,GRP,High,High,0,M,14,74.3,154.3,5.355,
+GRP-07,GRP,399,399,399,GRP,High,High,1,F,17,79.6,183.6,4.871,Shedding Skin
+GRP-08,GRP,5590,4450,5020,GRP,High,High,1,F,15,78.4,179,5.694,
+GRP-09,GRP,1120,1100,1110,GRP,High,High,1,M,15,78.2,181.2,5.329,
+GRP-10,GRP,1930,1830,1880,GRP,High,High,1,M,18,85,181.6,6.689,
+GRP-11,GRP,0,0,0,GRP,High,High,0,M,17,79.4,181.1,4.623,
+GRP-12,GRP,260,275,268,GRP,High,High,1,M,16,74.4,155,4.123,
+GRP-13,GRP,0,0,0,GRP,High,High,0,M,11,79.3,167.1,4.055,
+GRP-14,GRP,1190,1010,1100,GRP,High,High,1,M,16,82.2,193.4,5.591,
+GRP-15,GRP,656,617,636,GRP,High,High,1,M,15,76,172.1,5.289,
+GRP-16,GRP,3730,5280,4500,GRP,High,High,1,M,12,72.9,138.2,3.698,Short tail (regrowing)
+GRP-17,GRP,2960,3420,3190,GRP,High,High,1,M,19,82.9,130.6,5.271,Short tail (regrowing)
+GRP-18,GRP,0,0,0,GRP,High,High,0,M,14,76.9,161.7,4.117,
+GRP-19,GRP,0,0,0,GRP,High,High,0,M,22,87.3,172.9,6.718,
+GRP-20,GRP,0,0,0,GRP,High,High,0,F,12,72.1,145.6,4.064,
+GRP-21,GRP,0,0,0,GRP,High,High,0,M,20,84,196.1,6.555,
+GRP-22,GRP,1720,2280,2000,GRP,High,High,1,M,17,81.7,173,5.878,
+GRP-23,GRP,490,1140,813,GRP,High,High,1,F,17,87,189.2,5.303,
+GRP-24,GRP,4090,4260,4180,GRP,High,High,1,M,15,78.7,172.6,5.17,
+GRP-25,GRP,625,579,602,GRP,High,High,1,M,14,77.6,164.3,4.908,
+LSSP-01,LSSP,0,0,0,LSSP,Low,Low,0,M,11,72.1,155.3,0.119,
+LSSP-02,LSSP,0,0,0,LSSP,Low,Low,0,F,15,80.3,170.7,0.598,Shedding skin
+LSSP-03,LSSP,0,0,0,LSSP,Low,Low,0,M,14,77.2,164.8,0.6,
+LSSP-04,LSSP,0,0,0,LSSP,Low,Low,0,M,16,77.4,167,0.34,Odd speckling (took photo)
+LSSP-05,LSSP,0,0,0,LSSP,Low,Low,0,M,17,82.8,183.6,0.203,
+LSSP-06,LSSP,0,0,0,LSSP,Low,Low,0,F,12,73,178.1,0.158,
+LSSP-07,LSSP,0,0,0,LSSP,Low,Low,0,M,14,79.2,162.3,0.185,
+LSSP-08,LSSP,0,0,0,LSSP,Low,Low,0,M,17,82.3,178.4,0.217,
+LSSP-09,LSSP,0,0,0,LSSP,Low,Low,0,F,11,70.7,147,0.158,Odd speckling (took photo)
+LSSP-10,LSSP,0,0,0,LSSP,Low,Low,0,M,12,70,163.2,0.411,
+SLNF-01,SLNF,14100,20700,17400,SLNF,Low,Low,1,M,8,68,145.8,0.583,
+SLNF-02,SLNF,1550,1860,1700,SLNF,Low,Low,1,F,10,69.2,144,0.359,Potent smell and more than usual foam
+SLNF-03,SLNF,0,0,0,SLNF,Low,Low,0,M,19,79,185.2,0.284,Dropped most of first mucosome bath; Potent smell and more than usual foam
+SLNF-04,SLNF,0,0,0,SLNF,Low,Low,0,F,9,70,135,0.503,Pooped in mucosome bath; Odd mass ~34mm anterior to tip of tail. Kink in tail with two bumps/buldges on either side (see photo)
+SLNF-05,SLNF,0,0,0,SLNF,Low,Low,0,F,8,68.2,139.3,0.255,
+SLNF-06,SLNF,350,1220,785,SLNF,Low,Low,1,M,12,78,175.1,0.307,
+SLNF-07,SLNF,0,0,0,SLNF,Low,High,0,F,8,65.6,138.1,1.592,Used 3mm biopsy punch instead of 5mm due to small size
+SLNF-08,SLNF,0,0,0,SLNF,Low,Low,0,M,14,78.7,142.1,0.11,Short tail (regrowing)
+SLNF-09,SLNF,668,962,815,SLNF,Low,High,1,F,7,66.2,134.2,1.124,Used 3mm biopsy punch instead of 5mm due to small size
+SLNF-10,SLNF,0,0,0,SLNF,Low,Low,0,F,11,77.8,159,0.622,Odd speckling on left side of ventrum near left hindlmb (see photo)
+TMC-01,TMC,0,0,0,TMC,High,Low,0,F,11,67,137.4,0.825,
+TMC-02,TMC,0,0,0,TMC,High,High,0,M,14,69.4,155.8,4.107,
+TMC-03,TMC,0,0,0,TMC,High,Low,0,M,13,67,151.9,0.497,Odd lesion-like circle on dorsum (see photo); Washed 4 times but was still quite dirty
+TMC-04,TMC,281,273,277,TMC,High,Low,1,M,12,76.9,167.3,0.375,
+TMC-05,TMC,0,0,0,TMC,High,High,0,M,16,80.9,168.9,4.237,
+TMC-06,TMC,2780,3110,2950,TMC,High,High,1,F,15,81.4,172,4.397,
+TMC-07,TMC,0,0,0,TMC,High,Low,0,M,14,75.3,163.7,0.503,
+TMC-08,TMC,749,366,557,TMC,High,Low,1,M,20,83.9,189.3,0.548,
+TMC-09,TMC,571,1210,891,TMC,High,High,1,M,13,79.2,167.9,3.926,
+TMC-10,TMC,0,0,0,TMC,High,High,0,M,15,79.8,169.6,4.583,
+TMC-11,TMC,0,0,0,TMC,High,High,0,M,18,77.7,167.7,5.59,Lethargic prior to the MS-222 anesthetization
+WBC-01,WBC,0,0,0,WBC,Low,Low,0,M,18,79,176.8,0.063,
+WBC-02,WBC,0,0,0,WBC,Low,Low,0,F,12,73.1,168.2,0.249,Parasite under skin where biopsied?
+WBC-03,WBC,1560,1390,1470,WBC,Low,Low,1,F,14,69.4,141.9,0.133,
+WBC-04,WBC,493,292,393,WBC,Low,Low,1,F,14,72.1,156.3,0.071,
+WBC-05,WBC,0,0,0,WBC,Low,Low,0,M,17,79.1,188.1,0.32,
+WBC-06,WBC,326,477,401,WBC,Low,Low,1,F,11,66.2,144,0.175,
+WBC-07,WBC,0,0,0,WBC,Low,Low,0,M,14,70.8,146.7,0.203,
+WBC-08,WBC,720,1090,906,WBC,Low,Low,1,M,13,71.3,148.4,0.131,Shedding skin
+WBC-09,WBC,874,1360,1120,WBC,Low,Low,1,F,16,81.3,170,0.411,
+WBC-10,WBC,440,838,639,WBC,Low,Low,1,M,20,89.6,194.8,0.412,
+WBC-11,WBC,0,0,0,WBC,Low,Low,0,M,21,89,183.2,0.492,
+WBC-12,WBC,596,709,653,WBC,Low,Low,1,F,15,73.2,145,0.478,
+WBC-13,WBC,218,292,255,WBC,Low,Low,1,F,14,72.8,155.7,0.124,
+WBC-14,WBC,1020,568,793,WBC,Low,Low,1,F,14,75.9,149.2,0.255,
+WBC-15,WBC,520,1180,850,WBC,Low,High,1,M,18,78.6,181.8,1.484,
+WBC-16,WBC,573,831,702,WBC,Low,Low,1,M,24,86.1,170.9,0.562,
+WBC-17,WBC,0,0,0,WBC,Low,Low,0,M,17,80.3,179.6,0.165,
+WBC-18,WBC,724,1310,1020,WBC,Low,Low,1,M,22,84.4,192.6,0.918,
+WBC-19,WBC,777,1480,1130,WBC,Low,High,1,M,21,86.8,171.9,1.719,
+WBC-20,WBC,0,0,0,WBC,Low,Low,0,M,18,82.9,179.6,0.613,
+WBC-21,WBC,0,0,0,WBC,Low,Low,0,M,20,80,180.4,0.345,
+WBC-22,WBC,417,486,451,WBC,Low,Low,1,M,20,83.8,183.6,0.257,
+WBC-23,WBC,0,0,0,WBC,Low,Low,0,F,19,80.1,185.6,0.274,
+WBC-24,WBC,1240,1400,1320,WBC,Low,Low,1,M,12,75.2,156.2,0.256,
+WBC-25,WBC,0,0,0,WBC,Low,Low,0,F,14,73.6,166,0.322,

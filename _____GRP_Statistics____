@@ -1,0 +1,123 @@
+#_____GRP_Statistics____
+
+rm(list=ls())
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(lme4) 
+library(nlme)
+library(vegan)
+library(readr)
+library(plotrix)
+library(reticulate)
+library(effects)
+library(remotes)
+library(MuMIn)
+library(ggtext)
+library(car)
+library(MuMIn)
+library(minpack.lm)
+#remotes::install_github('ProcessMiner/nlcor')
+library(nlcor)
+#remotes::install_github('femiguez/nlraa')
+library(nlraa)
+library(mgcv)
+library(tidymv)
+#remotes::install_github("gavinsimpson/gratia")
+library(gratia)
+library(GGally)
+
+#______________________GRP_Statistics_______________
+
+#______Data.frame import and basic exploration___
+setwd('/home/tally/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/GRP')
+list.files()
+df_grp <- read.csv('GRP_whole_dataset.csv', header = TRUE)
+head(df_grp, 4)
+summary(df_grp)
+class(df_grp$ZE.avg.Bd)
+nrow(df_grp)
+ncol(df_grp)
+str(df_grp)
+colSums(is.na(df_grp))
+dim(df_grp)
+
+grp_bd_pos_sum <- sum(df_grp$Bd_Presence == 1)
+grp_bd_pos_sum
+grp_bd_neg_sum <- sum(df_grp$Bd_Presence == 0)
+grp_bd_neg_sum
+
+basic_stuff = function(x) {
+  mean = mean(x)
+  sd = sd(x)
+  min = min(x)
+  max = max(x)
+  return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
+}
+grp_sum_list = list('average_zoospore' = df_grp$ZE.avg.Bd, 'TTX' = df_grp$Predicted.whole.newt.TTX..mg., 'SVL' = df_grp$SVL_mm, 'Mass' = df_grp$Mass_g, 'Total_Length' = df_grp$TL_mm)
+grp_summ = sapply(grp_sum_list, basic_stuff, USE.NAMES = TRUE)
+grp_summ
+
+grp_males <- sum(df_grp$Sex == 'M')
+grp_males
+grp_females <- sum(df_grp$Sex == 'F')
+grp_females
+
+grp_Bd_zeros <- sum(df_grp$ZE.avg.Bd == 0)
+#This is to show how many zeroes are in the bd avg set
+grp_Bd_zeros
+
+?ggpairs
+ggpairs(df_grp, cardinality_threshold = 25)
+
+#___assigned_Variables___
+
+grp_Bd <- df_grp$ZE.avg.Bd
+grp_TTX <- df_grp$Predicted.whole.newt.TTX..mg.
+grp_mass <- df_grp$Mass_g
+grp_svl <- df_grp$SVL_mm
+grp_bd_presence <- df_grp$Bd_Presence
+grp_total_length <- df_grp$TL_mm
+grp_sex <- df_grp$Sex
+
+log_zoo <- log(grp_Bd + 1)
+#____Graphs____
+ggplot(df_grp, aes(grp_TTX, grp_Bd)) + geom_point(aes(colour = factor(grp_TTX))) + theme_classic()
+
+#________Correlational_tests________
+
+glm_1_bd_pres_ttx = glm(grp_bd_presence ~ grp_TTX, family = binomial)
+summary(glm_1_bd_pres_ttx)
+plot(allEffects(glm_1_bd_pres_ttx))
+
+glm_2_zoospore_ttx = glm(grp_bd_presence ~ grp_TTX, family = quasibinomial)
+summary(glm_2_zoospore_ttx)
+plot(allEffects(glm_2_zoospore_ttx))
+
+glm_3_pres_mass = glm(grp_bd_presence ~ grp_mass, family = quasibinomial)
+summary(glm_3_pres_mass)
+plot(allEffects(glm_3_pres_mass))
+
+aNova = aov(log_zoo ~ grp_sex)
+summary(aNova)
+
+linear <- lm(log_zoo ~ grp_TTX)
+summary(linear)
+
+dlskfjadj <- aov(grp_TTX ~ grp_bd_presence)
+summary(dlskfjadj)
+
+#___________________________________Only Positives____________________
+grp_df2 <- subset(df_grp, ZE.avg.Bd > 0)
+grp_df2
+
+grp_pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
+grp_pos_Bd <- df2$ZE.avg.Bd
+
+
+#____Graphs____
+grp_gen_plot <- ggplot(df2, aes(pos_TTX, pos_Bd)) + geom_point(aes(colour = factor(pos_TTX), size = 4.5)) + theme_classic()
+grp_gen_plot
+
+
+

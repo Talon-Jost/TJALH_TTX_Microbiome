@@ -1,0 +1,113 @@
+#_____WBC_Statistics____
+
+rm(list=ls())
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(lme4) 
+library(nlme)
+library(vegan)
+library(readr)
+library(plotrix)
+library(reticulate)
+library(effects)
+library(remotes)
+library(MuMIn)
+library(ggtext)
+library(car)
+library(MuMIn)
+library(minpack.lm)
+#remotes::install_github('ProcessMiner/nlcor')
+library(nlcor)
+#remotes::install_github('femiguez/nlraa')
+library(nlraa)
+library(mgcv)
+library(tidymv)
+#remotes::install_github("gavinsimpson/gratia")
+library(gratia)
+library(GGally)
+
+#______Data.frame import and basic exploration___
+setwd('~/Documents/Thesis_Part_2/Newt_TTX_Project/R_Stuff/further_analyses/WBC')
+list.files()
+df_wbc <- read.csv('WBC_whole_dataset.csv', header = TRUE)
+head(df_wbc, 4)
+summary(df_wbc)
+class(df_wbc$ZE.avg.Bd)
+nrow(df_wbc)
+ncol(df_wbc)
+str(df_wbc)
+colSums(is.na(df_wbc))
+dim(df_wbc)
+
+bd_pos_sum <- sum(df_wbc$Bd_Presence == 1)
+bd_pos_sum
+bd_neg_sum <- sum(df_wbc$Bd_Presence == 0)
+bd_neg_sum
+
+basic_stuff = function(x) {
+  mean = mean(x)
+  sd = sd(x)
+  min = min(x)
+  max = max(x)
+  return(c('mean' = mean, 'stdev' = sd, 'min' = min, 'max' = max))
+}
+sum_list = list('average_zoospore' = df_wbc$ZE.avg.Bd, 'TTX' = df_wbc$Predicted.whole.newt.TTX..mg., 'SVL' = df_wbc$SVL_mm, 'Mass' = df_wbc$Mass_g, 'Total_Length' = df_wbc$TL_mm)
+summ = sapply(sum_list, basic_stuff, USE.NAMES = TRUE)
+summ
+
+males <- sum(df_wbc$Sex == 'M')
+males
+females <- sum(df_wbc$Sex == 'F')
+females
+
+Bd_zeros <- sum(df_wbc$ZE.avg.Bd == 0)
+#This is to show how many zeroes are in the bd avg set
+Bd_zeros
+
+?ggpairs
+ggpairs(df_wbc, cardinality_threshold = 24)
+
+#___assigned_Variables___
+
+Bd <- df_wbc$ZE.avg.Bd
+TTX <- df_wbc$Predicted.whole.newt.TTX..mg.
+mass <- df_wbc$Mass_g
+svl <- df_wbc$SVL_mm
+bd_presence <- df_wbc$Bd_Presence
+total_length <- df_wbc$TL_mm
+sex <- df_wbc$Sex
+
+#____Graphs____
+ggplot(df_wbc, aes(TTX, Bd)) + geom_point(aes(colour = factor(TTX))) + theme_classic()
+
+#________Correlational_tests________
+
+wbc_glm1 = glm(data = df_wbc, Bd_Presence ~ TTX, family = binomial)
+summary(wbc_glm1)
+plot(allEffects(wbc_glm1), type = 'response')
+
+log_bd <- log(df_wbc$ZE.avg.Bd + 1)
+wbc_lm1 = lm(data = df_wbc, log_bd ~ TTX, family = binomial)
+summary(wbc_lm1)
+plot(log_bd ~ TTX)
+
+sex_anova <- aov(TTX ~ df_wbc$Sex)
+summary(sex_anova)
+
+bd_anova <- aov(log_bd ~ df_wbc$Sex)
+summary(bd_anova)
+
+ttx_anova <- aov(df_wbc$Predicted.whole.newt.TTX..mg. ~ log_bd)
+summary(ttx_anova)
+#___________________________________Only Positives____________________
+df2 <- subset(df_wbc, ZE.avg.Bd > 0)
+df2
+
+pos_TTX <- df2$Predicted.whole.newt.TTX..mg.
+pos_Bd <- df2$ZE.avg.Bd
+#____Graphs____
+gen_plot <- ggplot(df2, aes(pos_TTX, pos_Bd)) + geom_point(aes(colour = factor(pos_TTX), size = 4.5)) + theme_classic()
+gen_plot
+
+
